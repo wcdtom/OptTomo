@@ -5,4 +5,17 @@
 provided by [OpticCommPy](https://github.com/edsonportosilva/OptiCommPy).
 * set the parameters related to transmitter in ./signal_generator_coherent.py
 * set the parameters related to fiber and tomography in ./tomo_fiber.py.
-* TODO: requirement.txt
+
+### Requirements
+
+If you use the Pycharm virtual environment (else pass) :
+
+```
+source .venv/bin/activate
+```
+
+Install Dependencies from ./requirements.txt
+
+```
+pip install -r requirements.txt
+```

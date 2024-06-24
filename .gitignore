@@ -1,0 +1,2 @@
+# ignore ALL .npz files
+*.npz
