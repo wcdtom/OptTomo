@@ -1,5 +1,3 @@
-import os
-import sys
 from numpy.fft import fft, fftfreq, ifft
 import numpy as np
 from numpy.typing import NDArray
@@ -12,10 +10,6 @@ from optic.models.tx import simpleWDMTx
 from datetime import datetime
 import argparse
 from tqdm import tqdm
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
 
 seed_num = 55  # necessary condition
 try:
@@ -55,7 +49,7 @@ if_save_g = False
 if_save_gamma = True
 computing_G = True
 
-if_plot = False
+if_plot = True
 
 
 def tomo_cd(length: float, signal_input: NDArray) -> NDArray:
@@ -112,7 +106,7 @@ def generate_matrix_g(save_g=False):
 
         G[z_index] = g_bias
     if save_g:
-        np.savez('seed='+str(seed_num)+'G.npz', G=G)
+        np.savez('./Result/seed='+str(seed_num)+'G.npz', G=G)
         print('Have saved _G.npz')
     return G
 
@@ -134,7 +128,7 @@ def solve_gamma(matrix_g: np.ndarray, lambda_i=0, save_gamma=True):
 
     gamma_total = np.dot(inverse_G_dagger_G_plus_I, G_dagger_A)
     if save_gamma:
-        np.savez('seed=' + str(seed_num) + 'gamma.npz', gamma_total=gamma_total)
+        np.savez('./Results/seed=' + str(seed_num) + 'gamma.npz', gamma_total=gamma_total)
         print('Have saved seed=' + str(seed_num) + 'gamma.npz')
     return gamma_total
 
@@ -153,11 +147,11 @@ if __name__ == '__main__':
         print(datetime.now())
 
         if if_save_ssfm:
-            np.savez('seed=' + str(seed_num) + '.npz', signal_ssfm=signal_ssfm, sigTxo=sigTxo)
+            np.savez('./Results/seed=' + str(seed_num) + '.npz', signal_ssfm=signal_ssfm, sigTxo=sigTxo)
             print('Have saved the seed=' + str(seed_num) + ' ssfm waveform .npz')
     else:
-        signal_ssfm = np.load('seed=' + str(seed_num) + '.npz')['signal_ssfm']
-        sigTxo = np.load('seed=' + str(seed_num) + '.npz')['sigTxo']
+        signal_ssfm = np.load('./Results/seed=' + str(seed_num) + '.npz')['signal_ssfm']
+        sigTxo = np.load('./Results/seed=' + str(seed_num) + '.npz')['sigTxo']
 
     # average_power
     P_average = np.average(np.conjugate(sigTxo) * sigTxo)
@@ -167,7 +161,7 @@ if __name__ == '__main__':
     if computing_G:
         G = generate_matrix_g(save_g=if_save_g)
     else:
-        G = np.load('seed=' + str(seed_num) + 'G.npz')['G']
+        G = np.load('./Results/seed=' + str(seed_num) + 'G.npz')['G']
 
     gamma_g = solve_gamma(matrix_g=G, save_gamma=if_save_gamma)
 

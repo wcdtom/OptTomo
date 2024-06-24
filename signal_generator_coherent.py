@@ -1,11 +1,3 @@
-import os
-import sys
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-optic_dir = os.path.join(parent_dir, 'optic')
-sys.path.append(parent_dir)
-
 import numpy
 from optic.models.tx import simpleWDMTx
 from optic.utils import parameters, dBm2W
@@ -17,7 +9,7 @@ np.random.seed(seed=seed_num)  # fixing the seed to get reproducible results
 
 # simulation parameters
 SpS = 16            # samples per symbol
-M = 16              # order of the modulation format
+M = 4              # order of the modulation format
 Rs = 10e9          # Symbol rate (for OOK case Rs = Rb)
 Fs = SpS*Rs        # Sampling frequency in samples/second  # necessary condition
 Ts = 1/Fs          # Sampling period  # necessary condition
