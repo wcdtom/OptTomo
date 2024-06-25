@@ -25,7 +25,7 @@ except SystemExit as e:
 np.random.seed(seed=seed_num)  # fixing the seed to get reproducible results
 
 D = 16  # ps/nm/km
-alpha = 4.80  # dB/km
+alpha = 0.20  # dB/km
 Fc = 193.1e12  # Hz
 c_kms = const.c / 1e3  # km/s <-- speed of light (vacuum)
 wavelength = c_kms / Fc  # km
@@ -39,17 +39,19 @@ Nfft = int(signal_length * SpS)
 omega = 2 * np.pi * Fs * fftfreq(Nfft)
 omega = omega.reshape(omega.size, 1)
 
-l_total = 100
+l_total = 150
 l_span = 50
 delta_z = 1
 
-computing_ssfm = True
-if_save_ssfm = True
+computing_ssfm = False
+if_save_ssfm = False
 if_save_g = False
 if_save_gamma = True
 computing_G = True
 
-if_plot = True
+if_normalize_power = False
+
+if_plot = False
 
 
 def tomo_cd(length: float, signal_input: NDArray) -> NDArray:
@@ -84,8 +86,8 @@ def nonlinear_fiber(signal_input: NDArray) -> NDArray:
     paramCh.Fc = Fc  # central optical frequency of the WDM spectrum
     paramCh.Fs = Fs  # sampling rate
     paramCh.prgsBar = True  # show progress bar
-    # paramCh.amp = 'ideal'
-    paramCh.amp = None
+    paramCh.amp = 'ideal'
+    # paramCh.amp = None
 
     # nonlinear signal propagation
     signal_output = ssfm(signal_input, paramCh)
@@ -154,16 +156,23 @@ if __name__ == '__main__':
         signal_ssfm = np.load('./Results/seed=' + str(seed_num) + '.npz')['signal_ssfm']
         sigTxo = np.load('./Results/seed=' + str(seed_num) + '.npz')['sigTxo']
 
-    # average_power
-    if_normalize_power = True
-    P_average_tx = np.average(np.conjugate(sigTxo) * sigTxo)
-    P_average_ssfm = np.average(np.conjugate(signal_ssfm) * signal_ssfm)
-    print('Average tx:', P_average_tx, 'Average ssfm:', P_average_ssfm)
+    # # average_power
+    # P_average_tx = np.average(np.conjugate(sigTxo) * sigTxo)
+    # P_average_ssfm = np.average(np.conjugate(signal_ssfm) * signal_ssfm)
+    # P_average_cd = np.average(np.conjugate(signal_fiber) * signal_fiber)
+    # print('Average tx:', P_average_tx, 'Average ssfm:', P_average_ssfm, 'Average cd:', P_average_cd)
 
-    if if_normalize_power:
-        signal_ssfm = signal_ssfm * np.sqrt(P_average_tx/P_average_ssfm)
-        P_average_ssfm = np.average(np.conjugate(signal_ssfm) * signal_ssfm)
-        print('Average ssfm (after Power Normalization):', P_average_ssfm)
+    # if if_normalize_power:
+    #     # signal_ssfm = signal_ssfm * np.sqrt(P_average_tx/P_average_ssfm)
+    #     signal_ssfm = signal_ssfm * np.sqrt(1 / P_average_ssfm)
+    #     sigTxo = sigTxo * np.sqrt(1 / P_average_tx)
+    #     signal_fiber = signal_fiber * np.sqrt(1 / P_average_cd)
+    #
+    #     P_average_tx = np.average(np.conjugate(sigTxo) * sigTxo)
+    #     P_average_ssfm = np.average(np.conjugate(signal_ssfm) * signal_ssfm)
+    #     P_average_cd = np.average(np.conjugate(signal_fiber) * signal_fiber)
+    #     print('After Power Normalization:')
+    #     print('Average tx:', P_average_tx, 'Average ssfm:', P_average_ssfm, 'Average cd:', P_average_cd)
 
     z_tomo_bank = np.arange(0, l_total, delta_z)
 
