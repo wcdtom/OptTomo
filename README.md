@@ -19,3 +19,9 @@ Install Dependencies from ./requirements.txt
 ```
 pip install -r requirements.txt
 ```
+
+### TODO
+1. Reproducing the results published by NTT (perfect receiver, regardless of DSP algorithms).
+2. Introducing Error and corresponding DSP calibration algorithms.
+3. Integrating the tomography approach with the [GNpy](https://github.com/Telecominfraproject/oopt-gnpy) library.
+4. Expanding our model, e.g., to the scenario considering polarization multiplexing, space division multiplexing, or SRS.
