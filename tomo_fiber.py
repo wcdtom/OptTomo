@@ -84,7 +84,8 @@ def nonlinear_fiber(signal_input: NDArray) -> NDArray:
     paramCh.Fc = Fc  # central optical frequency of the WDM spectrum
     paramCh.Fs = Fs  # sampling rate
     paramCh.prgsBar = True  # show progress bar
-    paramCh.amp = "ideal"
+    # paramCh.amp = 'ideal'
+    paramCh.amp = None
 
     # nonlinear signal propagation
     signal_output = ssfm(signal_input, paramCh)
@@ -154,7 +155,15 @@ if __name__ == '__main__':
         sigTxo = np.load('./Results/seed=' + str(seed_num) + '.npz')['sigTxo']
 
     # average_power
-    P_average = np.average(np.conjugate(sigTxo) * sigTxo)
+    if_normalize_power = True
+    P_average_tx = np.average(np.conjugate(sigTxo) * sigTxo)
+    P_average_ssfm = np.average(np.conjugate(signal_ssfm) * signal_ssfm)
+    print('Average tx:', P_average_tx, 'Average ssfm:', P_average_ssfm)
+
+    if if_normalize_power:
+        signal_ssfm = signal_ssfm * np.sqrt(P_average_tx/P_average_ssfm)
+        P_average_ssfm = np.average(np.conjugate(signal_ssfm) * signal_ssfm)
+        print('Average ssfm (after Power Normalization):', P_average_ssfm)
 
     z_tomo_bank = np.arange(0, l_total, delta_z)
 
