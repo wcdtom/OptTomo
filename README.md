@@ -25,3 +25,8 @@ pip install -r requirements.txt
 2. Introducing Error and corresponding DSP calibration algorithms.
 3. Integrating the tomography approach with the [GNpy](https://github.com/Telecominfraproject/oopt-gnpy) library.
 4. Expanding our model, e.g., to the scenario considering polarization multiplexing, space division multiplexing, or SRS.
+
+
+<div style="text-align: center;">
+    <img src="./Results/gamma_theory.png" alt="plot" style="width: 80%;"/>
+</div>
