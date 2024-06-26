@@ -39,11 +39,11 @@ Nfft = int(signal_length * SpS)
 omega = 2 * np.pi * Fs * fftfreq(Nfft)
 omega = omega.reshape(omega.size, 1)
 
-l_total = 150
+l_total = 100
 l_span = 50
-delta_z = 1
+delta_z = 0.5
 
-computing_ssfm = False
+computing_ssfm = True
 if_save_ssfm = False
 if_save_g = False
 if_save_gamma = True
@@ -102,7 +102,9 @@ def generate_matrix_g(save_g=False):
         signal_before = tomo_cd(length=z_tomo, signal_input=sigTxo)
 
         # N(z) = |A(z)|^2 * A(z)
-        nonlinear_operator = (signal_before * np.conj(signal_before)) * signal_before  # - 2 * P_average
+        # P_average = np.average(np.conjugate(sigTxo) * sigTxo)
+        P_average = 0
+        nonlinear_operator = (signal_before * np.conj(signal_before) - 2 * P_average) * signal_before  # - 2 * P_average
 
         # g(z) = j * D{zl}{N(z)}
         g_bias = 1j * delta_z * tomo_cd(length=l_total - z_tomo, signal_input=nonlinear_operator)
@@ -192,15 +194,16 @@ if __name__ == '__main__':
         for z_index in range(z_tomo_bank.shape[0]):
             z_tomo = z_tomo_bank[z_index]
             span_num = np.floor(z_tomo / l_span)
-            gamma_theory_z = np.exp(-alpha_tomo / 2 * z_tomo + span_num * l_span * alpha_tomo / 2)
+            gamma_theory_z = np.exp(-alpha_tomo * z_tomo + span_num * l_span * alpha_tomo)
             gamma_theory.append(gamma_theory_z)
         gamma_theory = np.array(gamma_theory)
 
-        ax[0].plot(z_tomo_bank, gamma_g, label=r'$\gamma$(z) tomo')
+        ax[0].plot(z_tomo_bank, gamma_g/gamma, label=r'$\gamma$(z) tomo')
         ax[0].plot(z_tomo_bank, gamma_theory, label=r'$\gamma$(z) theory')
         ax[0].legend(loc='upper right')
         ax[0].set_xlabel('Distance(km)')
         ax[0].xaxis.set_label_position('top')
+        ax[0].set_yscale('log')
 
         recover_RP1 = np.dot(G.T, gamma_theory)
         interval = np.arange(16 * 20, 16 * 50)

@@ -38,6 +38,7 @@ ax.set_yscale('log')
 ax.set_ylabel('Loss (dB)')
 ax.set_xlabel('Distance(km)')
 # ax.set_ylim([-1, 1.5])
+plt.savefig('./Results/gamma_theory.pdf')
 
 plt.show()
 
