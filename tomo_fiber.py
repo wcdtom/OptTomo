@@ -49,7 +49,7 @@ if_save_g = False
 if_save_gamma = True
 computing_G = True
 
-if_normalize_power = False
+if_normalize_power = True
 
 if_plot = False
 
@@ -143,9 +143,6 @@ if __name__ == '__main__':
         sigWDM_Tx, symbTx_, paramTx = simpleWDMTx(paramTx)
         sigTxo = np.squeeze(sigWDM_Tx)
 
-        print('Generating chromatic dispersion signal...')
-        signal_fiber = tomo_cd(length=l_total, signal_input=sigTxo)
-
         print('Performing SSFM simulation...')
         print(datetime.now())
         signal_ssfm = nonlinear_fiber(signal_input=sigTxo)
@@ -158,23 +155,26 @@ if __name__ == '__main__':
         signal_ssfm = np.load('./Results/seed=' + str(seed_num) + '.npz')['signal_ssfm']
         sigTxo = np.load('./Results/seed=' + str(seed_num) + '.npz')['sigTxo']
 
-    # # average_power
-    # P_average_tx = np.average(np.conjugate(sigTxo) * sigTxo)
-    # P_average_ssfm = np.average(np.conjugate(signal_ssfm) * signal_ssfm)
-    # P_average_cd = np.average(np.conjugate(signal_fiber) * signal_fiber)
-    # print('Average tx:', P_average_tx, 'Average ssfm:', P_average_ssfm, 'Average cd:', P_average_cd)
+    # A_0
+    signal_fiber = tomo_cd(length=l_total, signal_input=sigTxo)
+    # Average_power
+    P_average_tx = np.average(np.conjugate(sigTxo) * sigTxo)
+    P_average_ssfm = np.average(np.conjugate(signal_ssfm) * signal_ssfm)
+    P_average_cd = np.average(np.conjugate(signal_fiber) * signal_fiber)
+    print('Average tx:', P_average_tx, 'Average ssfm:', P_average_ssfm)
 
-    # if if_normalize_power:
-    #     # signal_ssfm = signal_ssfm * np.sqrt(P_average_tx/P_average_ssfm)
-    #     signal_ssfm = signal_ssfm * np.sqrt(1 / P_average_ssfm)
-    #     sigTxo = sigTxo * np.sqrt(1 / P_average_tx)
-    #     signal_fiber = signal_fiber * np.sqrt(1 / P_average_cd)
-    #
-    #     P_average_tx = np.average(np.conjugate(sigTxo) * sigTxo)
-    #     P_average_ssfm = np.average(np.conjugate(signal_ssfm) * signal_ssfm)
-    #     P_average_cd = np.average(np.conjugate(signal_fiber) * signal_fiber)
-    #     print('After Power Normalization:')
-    #     print('Average tx:', P_average_tx, 'Average ssfm:', P_average_ssfm, 'Average cd:', P_average_cd)
+    if if_normalize_power:
+        # signal_ssfm = signal_ssfm * np.sqrt(P_average_tx/P_average_ssfm)
+        signal_ssfm = signal_ssfm * np.sqrt(1 / P_average_ssfm)
+        sigTxo = sigTxo * np.sqrt(1 / P_average_tx)
+        signal_fiber = signal_fiber * np.sqrt(1 / P_average_cd)
+        np.savez('./Results/seed=' + str(seed_num) + 'P0.npz', P_aver=P_average_tx)
+
+        # P_average_tx = np.average(np.conjugate(sigTxo) * sigTxo)
+        # P_average_ssfm = np.average(np.conjugate(signal_ssfm) * signal_ssfm)
+        # P_average_cd = np.average(np.conjugate(signal_fiber) * signal_fiber)
+        # print('After Power Normalization:')
+        # print('Average tx:', P_average_tx, 'Average ssfm:', P_average_ssfm, 'Average cd:', P_average_cd)
 
     z_tomo_bank = np.arange(0, l_total, delta_z)
 
@@ -198,7 +198,9 @@ if __name__ == '__main__':
             gamma_theory.append(gamma_theory_z)
         gamma_theory = np.array(gamma_theory)
 
-        ax[0].plot(z_tomo_bank, gamma_g/gamma, label=r'$\gamma$(z) tomo')
+        if not if_normalize_power:
+            P_average_tx = 1
+        ax[0].plot(z_tomo_bank, gamma_g/gamma/P_average_tx, label=r'$\gamma$(z) tomo')
         ax[0].plot(z_tomo_bank, gamma_theory, label=r'$\gamma$(z) theory')
         ax[0].legend(loc='upper right')
         ax[0].set_xlabel('Distance(km)')

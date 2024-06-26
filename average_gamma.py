@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from tomo_fiber import tomo_cd, l_total, l_span, Nfft, alpha_tomo, delta_z, gamma
+from tomo_fiber import tomo_cd, l_total, l_span, Nfft, alpha_tomo, delta_z, gamma, if_normalize_power
 
 # z_tomo_bank = delta_z + np.arange(0, l_total, delta_z)
 z_tomo_bank = np.arange(0, l_total, delta_z)
@@ -21,12 +21,20 @@ seeds = range(seeds_count)
 _, ax = plt.subplots()
 
 gamma_average = np.zeros_like(gamma_theory)
+P_total = 0.0
 for seed_value in seeds:
     print('seed_value: ', seed_value)
-    gamma_t = np.load('./Results/seed=' + str(seed_value) + 'gamma.npz')['gamma_total']
+    if if_normalize_power:
+        P_aver = np.load('./Results/seed=' + str(seed_value) + 'P0.npz')['P_aver']
+    else:
+        P_aver = 1
+    gamma_t = np.load('./Results/seed=' + str(seed_value) + 'gamma.npz')['gamma_total'] / P_aver
     ax.plot(z_tomo_bank, gamma_t/gamma, '--', alpha=0.2)
     gamma_average = gamma_average + gamma_t
+    P_total += P_aver
 
+if if_normalize_power:
+    print('Average Power: ', P_total / len(seeds))
 
 ax.plot(z_tomo_bank, gamma_theory ** 2, 'r-', label=r'$\gamma$(z) theory')  # in Power <-- ** 2
 ax.plot(z_tomo_bank, gamma_average/len(seeds)/gamma, 'b-', label=r'$\gamma$(z) Average='+str(len(seeds)))
