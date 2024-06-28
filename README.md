@@ -1,5 +1,9 @@
 # OptTomo
 
+<div style="text-align: center;">
+    <img src="./Results/gamma_theory.png" alt="plot" style="width: 80%;"/>
+</div>
+
 * run ./main_multiprocess.sh to concurrently call tomo_fiber.py with different random seeds.
 * ./tomo_fiber.py solve the Linear Least Squares Estimation of longitudinal power profile based on the simulation data
 provided by [OpticCommPy](https://github.com/edsonportosilva/OptiCommPy).
@@ -26,7 +30,7 @@ pip install -r requirements.txt
 3. Integrating the tomography approach with the [GNpy](https://github.com/Telecominfraproject/oopt-gnpy) library.
 4. Expanding our model, e.g., to the scenario considering polarization multiplexing, space division multiplexing, or SRS.
 
-
-<div style="text-align: center;">
-    <img src="./Results/gamma_theory.png" alt="plot" style="width: 80%;"/>
-</div>
+### Computational Overhead
+* $\gamma = (Re\[GG\])^{-1}$Re\[GA_1\]$
+* For the scenario with a pilot signal, the burden of computation can be performed
+in advance.
