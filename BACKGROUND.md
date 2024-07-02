@@ -40,4 +40,22 @@ JLT 2020, Google</cite>
 
 因此需要在灾后重建完成之前，先对灾区人民进行及时的临时疏解 --> (ARROW)
 
+****
+
+### Related work
+**Optical restoration**
+* ARROW: Restoration-Aware Traffic Engineering, sigcomm 2021, MIT & Facebook
+* TeaVaR: Striking the Right Utilization-Availability Balance in WAN Traffic Engineering, sigcomm 2019, MIT & Microsoft
+* Traffic engineering with forward fault correction, sigcomm 2014, Microsoft
+* FlexWAN: Software Hardware Co-design for Cost-Effective and Resilient Optical Backbones, sigcomm 2023, Tencent (部分内容)
+* A Social Network Under Social Distancing: Risk-Driven Backbone Management During COVID-19 and Beyond. NSDI 2021, Facebook (部分内容)
+
+**Network telemetry**
+* Detecting Ephemeral Optical Events with OpTel, NSDI 2022, Tencent
+* Evolvable Network Telemetry at Facebook, NSDI 2022, Facebook
+
+**Network reconfiguration**
+* CHISEL: An optical slice of the wide-area network, NSDI 2024, Microsoft
+* Cost-effective capacity provisioning in wide area networks with SHOOFLY, sigcomm 2021, Microsoft
+
 

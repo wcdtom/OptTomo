@@ -41,5 +41,6 @@ in advance: $G$ and $K=Re[G^{H}G]^{-1}$ is fixed.
 > **STEP 1**: $A_{1}[L]=A[L]-A_{0}[L]=A-\hat{D_{0L}}A[0]$, $\hat{D_{0L}}$ involving FFT,IFFT and element-wise multiplication --> $O(T_{s}\log T_{s})$
 * Given $A_{1} = A_{1,re} + i A_{1,im}$ and $G^{H} = G_{re}^{H} + i G_{im}^{H}$, the results $\gamma^{'} = K Re[G^{H} A_{1}] = [K G_{re}^{H}] A_{1,re} - [K G_{im}^{H}] A_{1,im}$
 > **STEP 2**: $\gamma^{'} = W_{re}A_{1,re} - W_{im}A_{1,im}$ --> matrix vector multiplication with $Z \times T_{s}$
-and $T_{s} \times 1 =  4 \times Z \times T_{s} \approx 10^8$ FLOP and $\approx$ 800Mb memory for storage the precomputed matrix $W_{re}, W_{im} = [K G_{re}^{H}], [K G_{im}^{H}]$ (in FP32)
-* GTX 4060: (FP32)15TFLOPS, (GDDR6)8GB
+and $T_{s} \times 1 =  4 \times Z \times T_{s} \approx 10^8$ FLOP and $\approx$ 800MB memory for storage the precomputed matrix $W_{re}, W_{im} = [K G_{re}^{H}], [K G_{im}^{H}]$ (in FP32)
+* GTX 4060: (FP32)15TFLOPS, (GDDR6)8GB, Memory Bandwidth 272GB/s 
+--> Execution time: sub-second (theory)
