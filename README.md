@@ -44,3 +44,4 @@ in advance: $G$ and $K=Re[G^{H}G]^{-1}$ is fixed.
 and $T_{s} \times 1 =  4 \times Z \times T_{s} \approx 10^8$ FLOP and $\approx$ 800MB memory for storage the precomputed matrix $W_{re}, W_{im} = [K G_{re}^{H}], [K G_{im}^{H}]$ (in FP32)
 * GTX 4060: (FP32)15TFLOPS, (GDDR6)8GB, Memory Bandwidth 272GB/s 
 --> Execution time: sub-second (theory)
+* Tested on Apple M1 ARM-based system-on-a-chip (1024 ALU, 2.6TFLOPS in FP32): $\approx$ 100ms
