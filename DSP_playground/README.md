@@ -3,7 +3,7 @@
   * physical model
   * optic.dsp.{core, 信道均衡 --> 时钟恢复 --> 载波恢复}
   * 甚至包含数字反传模块
-> NOTE: OptiCommPy代码中包含许多希腊字母作为变量名，但是这真的能运行
+> NOTE: OptiCommPy代码中包含许多希腊字母作为变量名，但真的能运行～～
 
 #### test.WDM_amp_transmission
 * 参数设置：Tx, channel, EDFA
@@ -28,3 +28,8 @@ for indCh in tqdm(range(param.Nch)):
 ```
 * np.random --> **modulateGray** --> upsample --> firFilter
 --> (if indMode==0) phaseNoise --> **iqm** --> sigTxCh
+
+#### Core Algorithm
+* 时钟恢复：Gardener algorithm
+* 信道均衡：self-recovering equalization, e.g., Constant-Modulus algorithm
+* 载波恢复：Viterbi-Viterbi algorithm

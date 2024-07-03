@@ -6,6 +6,7 @@ import random
 
 LARGE_VALUE = 10
 
+
 def is_flow_zero(flow_s_t, node, node_neighbor, path_len_dict):
     slack = 4
     flow_s = flow_s_t[0]
@@ -22,6 +23,7 @@ def is_flow_zero(flow_s_t, node, node_neighbor, path_len_dict):
         return True
     else:
         return False
+
 
 def is_neighbor(a, b, path_length_dict):
     a_neighbors = path_length_dict[a]
@@ -81,7 +83,6 @@ def reciprocal_random_graph(topology, capacity):
             else:
                 flag = 0
 
-
     return random_graph
 
 
@@ -123,7 +124,6 @@ def build_lp_pulp(topology, traffic_matrix, probability, equal_capacity):
     a_list = [_ for _ in range(curf_id)]
     random.shuffle(a_list)
     choose_count = round(curf_id * probability)
-
 
     model = pulp.LpProblem(name="throughput", sense=pulp.LpMaximize)
     k = pulp.LpVariable(name="k", lowBound=0)
@@ -267,6 +267,7 @@ def build_lp_pulp(topology, traffic_matrix, probability, equal_capacity):
                 fid += 1
     print('c2 constrains are done')
     return model
+
 
 def build_lp_glpk(topology, traffic_matrix, probability, equal_capacity, glpk_file):
     global_var = []
@@ -473,11 +474,6 @@ def build_lp_glpk(topology, traffic_matrix, probability, equal_capacity, glpk_fi
     print('GLPK model file is done')
 
 
-
-
-
-
-
 def build_lp_gurobi(topology, traffic_matrix, probability, equal_capacity, gurobi_file):
     global_var = []
     neighbor_dict = {}
@@ -681,12 +677,3 @@ def build_lp_gurobi(topology, traffic_matrix, probability, equal_capacity, gurob
 
 def build_lp_cplex(topology, traffic_matrix, probability, equal_capacity):
     pass
-
-
-
-
-
-
-
-
-
