@@ -13,9 +13,9 @@ in the Era of **SDM** and **Multi-band**"
 
 > 对于EDFA，谷歌使用C+L分别放大，并且使用EDFA+Raman的方法
 > 
-> Despite the fact that separate C and L band ampliﬁers slightly lower overall available transmission bandwidth, it simpliﬁes operations as it allows to turn up bands independently as capacity grows.
+> Despite the fact that separate C and L band amplifiers slightly lower overall available transmission bandwidth, it simplifies operations as it allows to turn up bands independently as capacity grows.
 > 
-> Hybrid ampliﬁcation schemes are widely adopted as Raman ampliﬁers allow to increase system SNR thanks to an improved noise ﬁgure. Therefore Google currently deploys them in the almost every long haul route.
+> Hybrid amplification schemes are widely adopted as Raman amplifiers allow to increase system SNR thanks to an improved noise figure. Therefore, Google currently deploys them in the almost every long haul route.
 > 
 > -- <cite>Opportunities and Challenges of C+L Transmission Systems, 
 JLT 2020, Google</cite>
@@ -54,8 +54,16 @@ JLT 2020, Google</cite>
 * Detecting Ephemeral Optical Events with OpTel, NSDI 2022, Tencent
 * Evolvable Network Telemetry at Facebook, NSDI 2022, Facebook
 
-**Network reconfiguration**
+**Optical network reconfiguration**
 * CHISEL: An optical slice of the wide-area network, NSDI 2024, Microsoft
 * Cost-effective capacity provisioning in wide area networks with SHOOFLY, sigcomm 2021, Microsoft
 
+**Solver acceleration**
+> The performance decline during transient link failures can be compensated through rapid recomputation.
+> ... can be used to react quickly to demand changes and link failures.
+* Teal: Learning-accelerated optimization of wan traffic engineering, sigcomm 2023
+* Contracting Wide-area Network Topologies to Solve Flow Problems Quickly, NSDI 2021
 
+**Multi-band & SDM optical network**
+* Solving for Scalability From Multi-Band to Multi-Rail Core Networks, JLT 2022, Google
+* Provisioning in Multi-Band Optical Networks, JIT 2020
