@@ -46,8 +46,8 @@ IP层：traffic engineering (transponder, router)
 
 optical层：optical path Reuse / Reconfiguration
 <div style="display: flex; justify-content: center; align-items: center;">
-    <img src="./Figure/otn01.png" alt="plot" style="max-width: 40%; height: auto; margin-right: 5px;"/>
-    <img src="./Figure/otn02.png" alt="plot" style="max-width: 40%; height: auto;"/>
+    <img src="./Figure/otn01.png" alt="plot" style="width: 40%; height: auto; margin-right: 5px;"/>
+    <img src="./Figure/otn02.png" alt="plot" style="width: 40%; height: auto;"/>
 </div>
 
 ****
