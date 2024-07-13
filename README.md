@@ -25,9 +25,13 @@ pip install -r requirements.txt
 ```
 
 ### TODO
-1. Reproducing the results published by NTT (perfect receiver, regardless of DSP algorithms). :heavy_check_mark:
+1. Reproducing the results published by NTT (perfect receiver, regardless of DSP algorithms).
+   * RP1 :heavy_check_mark:
+   * enhanced RP1 (eRP1)
 2. Introducing Error and corresponding DSP calibration algorithms.
-3. Algorithm optimization and speeding up with GPU. :heavy_check_mark:
+3. Algorithm optimization and speeding up with GPU. 
+   * pilot signal based method (on Apple Silicon GPU: torch.MPS) :heavy_check_mark:
+   * transmitted signal based method (on Nvidia GPU)
 4. Integrating the tomography approach with the [GNpy](https://github.com/Telecominfraproject/oopt-gnpy) library.
 5. Expanding our model, e.g., to the scenario considering polarization multiplexing, space division multiplexing, or SRS.
 

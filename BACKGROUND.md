@@ -4,10 +4,12 @@ in the Era of **SDM** and **Multi-band**"
 * Method: Telemetry + QoT model + Tomography + OTDR
 
 ### SDM和mult-band光网络系统有何特殊之处?
-* 关于MCF光纤：需要其在不同波长的参数
-* 关于放大器：MCF光纤分成多个单模光纤分别放大，
-但是不同band的信号如何放大，也是分开放大吗
-* 关于ROADM：问题同放大器一样
+* SDM不等于MCF，也可以是parallel single-mode fiber (multi-rail fiber) 
+<-- <em>Solving for Scalability From Multi-Band to Multi-Rail Core Networks, JLT 2022, Google</em>
+* 关于MCF光纤：SRS对多波段的影响极大，在规划阶段需要使用GNpy等QoT模型进行评估
+  * **问题1**：GNpy模型如何与传统线性优化求解进行匹配（普通的线性优化在大规模网络已经很难快速完成）
+* 关于放大器：MCF光纤分成多个单模光纤分别放大，不同波段信号分别放大（或共用）
+* 关于ROADM：(一般情况)core和band均分开放大
 * SDM和mult-band光网络中器件数量会不会激增？从而导致出错概率变高？
 * 或者导致telemetry需要处理数据量变得很大，以至于无法在高频率下快速处理
 
@@ -40,6 +42,14 @@ JLT 2020, Google</cite>
 
 因此需要在灾后重建完成之前，先对灾区人民进行及时的临时疏解 --> (ARROW)
 
+IP层：traffic engineering (transponder, router)
+
+optical层：optical path Reuse / Reconfiguration
+<div style="display: flex; justify-content: center; align-items: center;">
+    <img src="./Figure/otn01.png" alt="plot" style="max-width: 40%; height: auto; margin-right: 5px;"/>
+    <img src="./Figure/otn02.png" alt="plot" style="max-width: 40%; height: auto;"/>
+</div>
+
 ****
 
 ### Related work
@@ -67,3 +77,6 @@ JLT 2020, Google</cite>
 **Multi-band & SDM optical network**
 * Solving for Scalability From Multi-Band to Multi-Rail Core Networks, JLT 2022, Google
 * Provisioning in Multi-Band Optical Networks, JIT 2020
+
+**Optical failure localization and prediction**
+* 
