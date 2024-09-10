@@ -48,6 +48,7 @@ from qampy.core.prbs import make_prbs_extXOR
 from qampy.core.signal_quality import make_decision, generate_bitmapping_mtx,\
     estimate_snr, soft_l_value_demapper_minmax, soft_l_value_demapper, cal_mi
 from qampy.core.io import save_signal
+from optic.dsp.core import pnorm
 
 
 class RandomBits(np.ndarray):
@@ -657,8 +658,8 @@ class SignalQAMGrayCoded(SignalBase):
     # using Randombits as default class because they are slightly faster
     def __new__(cls, M, N, nmodes=1, fb=1, bitclass=RandomBits, dtype=np.complex128, **kwargs):
         assert dtype in [np.complex128, np.complex64], "only np.complex128 and np.complex64  or None dtypes are supported"
-        scale = np.sqrt(theory.cal_scaling_factor_qam(M))
-        coded_symbols, _graycode, encoding, bitmap_mtx = cls._generate_mapping(M, scale, dtype=dtype)
+        # scale = np.sqrt(theory.cal_scaling_factor_qam(M))
+        coded_symbols, _graycode, encoding, bitmap_mtx = cls._generate_mapping(M, dtype=dtype)
         Nbits = int(N * np.log2(M))
         bits = bitclass(Nbits, nmodes=nmodes, **kwargs)
         obj = cls._modulate(bits, encoding, coded_symbols, dtype=dtype)
@@ -762,8 +763,8 @@ class SignalQAMGrayCoded(SignalBase):
         P = (abs(np.unique(symbs))**2).mean()
         if not np.isclose(P, 1):
             warnings.warn("Power of symbols is not normalized to 1, this might cause issues later")
-        scale = np.sqrt(theory.cal_scaling_factor_qam(M)) / np.sqrt((abs(np.unique(symbs)) ** 2).mean())
-        coded_symbols, graycode, encoding, bitmap_mtx = cls._generate_mapping(M, scale, dtype=dtype)
+        # scale = np.sqrt(theory.cal_scaling_factor_qam(M)) / np.sqrt((abs(np.unique(symbs)) ** 2).mean())
+        coded_symbols, graycode, encoding, bitmap_mtx = cls._generate_mapping(M, dtype=dtype)
         out = np.empty_like(symbs).astype(dtype)
         for i in range(symbs.shape[0]):
             out[i], _, idx = make_decision(np.copy(symbs[i]), coded_symbols) # need a copy to avoid a pythran error
@@ -809,8 +810,8 @@ class SignalQAMGrayCoded(SignalBase):
             warnings.warn("Length of bits not divisible by log2(M) truncating")
             len = arr.shape[1] // nbits * nbits
             arr = arr[:, :len]
-        scale = np.sqrt(theory.cal_scaling_factor_qam(M))
-        coded_symbols, graycode, encoding, bitmap_mtx = cls._generate_mapping(M, scale, dtype=dtype)
+        # scale = np.sqrt(theory.cal_scaling_factor_qam(M))
+        coded_symbols, graycode, encoding, bitmap_mtx = cls._generate_mapping(M, dtype=dtype)
         # out = []
         # for i in range(arr.shape[0]):
         #    out.append( cls._modulate(arr[i], encoding, M))
@@ -829,11 +830,11 @@ class SignalQAMGrayCoded(SignalBase):
         return obj
 
     @classmethod
-    def _generate_mapping(cls, M, scale, dtype=np.complex128):
+    def _generate_mapping(cls, M, dtype=np.complex128):
         Nbits = int(np.log2(M))
         symbols = theory.cal_symbols_qam(M).astype(dtype)
         # check if this gives the correct mapping
-        symbols /= scale
+        symbols = pnorm(symbols)
         _graycode = theory.gray_code_qam(M)
         u = np.zeros_like(_graycode)
         u[_graycode] = np.arange(u.size)

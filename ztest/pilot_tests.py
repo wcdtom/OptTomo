@@ -8,7 +8,7 @@ from qampy.equalisation import pilot_equaliser
 import matplotlib.pylab as plt
 from optic.comm.modulation import modulateGray, demodulateGray, grayMapping, detector
 from qampy.core.signal_quality import make_decision, generate_bitmapping_mtx
-
+from optic.dsp.core import pnorm, signal_power
 
 
 
@@ -43,8 +43,11 @@ req_symb = np.count_nonzero(idx_pil)
 scale = np.sqrt(theory.cal_scaling_factor_qam(M))
 # Nbits = int(np.log2(M))
 symbols = theory.cal_symbols_qam(M).astype(dtype)
+print(symbols)
 # check if this gives the correct mapping
 symbols /= scale
+print(symbols)
+print(pnorm(symbols))
 _graycode = theory.gray_code_qam(M)
 # print(_graycode.shape)
 u = np.zeros_like(_graycode)
@@ -94,8 +97,20 @@ for i in range(nmodes):
 out_symbs[:, idx_pil] = out
 symbs = signals.SignalQAMGrayCoded(256, np.count_nonzero(idx_dat), nmodes=nmodes, dtype=dtype)
 out_symbs[:, idx_dat] = symbs
-print(out_symbs.shape)
-print(out_symbs[0, 511], out_symbs[0, 512])
+
+# print(out_symbs[0, 512:530])
+  # order of the modulation format
+constType = 'qam' # 'qam', 'psk', 'apsk', 'pam' or 'ook'
+
+# generate random bits
+bit_series = np.random.randint(2, size=int(2**16))
+print(bit_series.shape)
+# Map bits to constellation symbols
+symbTx = modulateGray(bit_series, 256, constType)
+print(symbTx)
+# normalize symbols energy to 1
+symbTx = pnorm(symbTx)
+# print(symbTx[512:530])
 # out_symbs = np.tile(out_symbs, nframes)
 # pilots = signals.SignalQAMGrayCoded(4, np.count_nonzero(idx_pil), nmodes=npols, dtype=dtype) * pilot_scale
 
@@ -110,3 +125,7 @@ print(out_symbs[0, 511], out_symbs[0, 512])
 #                                  pilot_ins_rat=32,
 #                                  nframes=3, nmodes=npols,
 #                                  fb=20e9)
+tsymbols = theory.cal_symbols_qam(256).astype(dtype)
+# check if this gives the correct mapping
+print(tsymbols)
+tsymbols = pnorm(tsymbols)
