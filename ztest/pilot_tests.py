@@ -8,9 +8,17 @@ from qampy.equalisation import pilot_equaliser
 import matplotlib.pylab as plt
 from optic.comm.modulation import modulateGray, demodulateGray, grayMapping, detector
 from qampy.core.signal_quality import make_decision, generate_bitmapping_mtx
-from optic.dsp.core import pnorm, signal_power
-
-
+from optic.models.devices import mzm, photodiode, edfa
+from optic.models.channels import linearFiberChannel
+from optic.comm.modulation import grayMapping, modulateGray, demodulateGray
+from optic.comm.metrics import theoryBER
+from optic.dsp.core import upsample, pulseShape, lowPassFIR, pnorm, signal_power
+from optic.utils import parameters, dBm2W
+from optic.plot import eyediagram, pconst
+import matplotlib.pyplot as plt
+from scipy.special import erfc
+from tqdm.notebook import tqdm
+import scipy as sp
 
 M = 4
 dtype = np.complex128
@@ -100,16 +108,16 @@ out_symbs[:, idx_dat] = symbs
 
 # print(out_symbs[0, 512:530])
   # order of the modulation format
-constType = 'qam' # 'qam', 'psk', 'apsk', 'pam' or 'ook'
+# constType = 'qam' # 'qam', 'psk', 'apsk', 'pam' or 'ook'
 
 # generate random bits
-bit_series = np.random.randint(2, size=int(2**16))
-print(bit_series.shape)
+# bit_series = np.random.randint(2, size=int(2**16))
+# print(bit_series.shape)
 # Map bits to constellation symbols
-symbTx = modulateGray(bit_series, 256, constType)
-print(symbTx)
+# symbTx = modulateGray(bit_series, 256, constType)
+# print(symbTx)
 # normalize symbols energy to 1
-symbTx = pnorm(symbTx)
+# symbTx = pnorm(symbTx)
 # print(symbTx[512:530])
 # out_symbs = np.tile(out_symbs, nframes)
 # pilots = signals.SignalQAMGrayCoded(4, np.count_nonzero(idx_pil), nmodes=npols, dtype=dtype) * pilot_scale
@@ -119,13 +127,13 @@ symbTx = pnorm(symbTx)
 # print(pilots._bitmap_mtx)
 # print(pilots._coded_symbols)
 
-#signal = signals.SignalWithPilots(M=16,
-#                                  frame_len=2**16,
-#                                  pilot_seq_len=512,
-#                                  pilot_ins_rat=32,
-#                                  nframes=3, nmodes=npols,
-#                                  fb=20e9)
-tsymbols = theory.cal_symbols_qam(256).astype(dtype)
-# check if this gives the correct mapping
-print(tsymbols)
-tsymbols = pnorm(tsymbols)
+signal = signals.SignalWithPilots(M=256,
+                                  frame_len=2**16,
+                                  pilot_seq_len=512,
+                                  pilot_ins_rat=32,
+                                  nframes=3, nmodes=npols,
+                                  fb=20e9)
+signal2 = signal.resample(signal.fb*2, beta=0.1, renormalise=True)
+
+print(signal.shape)
+print(signal2.shape)
