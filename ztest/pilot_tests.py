@@ -164,7 +164,7 @@ print(signal_class.pilot_seq)
 
 rx_signal = sigTx
 ref_symbs = signal_class.pilot_seq()
-os =
+
 
 # # If synchronization fails, then change sync_bool to 'False'
 sync_bool = True
@@ -174,15 +174,15 @@ rx_signal = np.atleast_2d(rx_signal)
 ref_symbs = np.atleast_2d(ref_symbs)
 pilot_seq_len = ref_symbs.shape[-1]
 nmodes = rx_signal.shape[0]
-assert rx_signal.shape[-1] >= (frame_len + 2*pilot_seq_len) * os, "Signal must be at least as long as frame"
+assert rx_signal.shape[-1] >= (frame_len + 2*pilot_seq_len) * SpS, "Signal must be at least as long as frame"
 #
 mode_sync_order = np.zeros(nmodes, dtype=int)
 not_found_modes = np.arange(0, nmodes)
 search_overlap = 2 # fraction of pilot_sequence to overlap
-search_window = pilot_seq_len * os
+search_window = pilot_seq_len * SpS
 step = search_window // search_overlap
 # we only need to search the length of one frame*os plus some buffer (the extra step)
-num_steps = (frame_len*os)//step + 1
+num_steps = (frame_len * SpS)//step + 1
 # Now search for every mode independent
 shift_factor = np.zeros(nmodes, dtype=int)
 # Search based on equalizer error. Avoid one pilot_seq_len part in the beginning and
@@ -194,6 +194,7 @@ for i in np.arange(search_overlap, num_steps): # we avoid one step at the beginn
     wxy, err_out = equalisation.equalise_signal(tmp, os, mu, M_pilot, Ntaps=Ntaps, **eqargs)
     wxys[i] = wxy
     sub_vars[:,i] = np.var(err_out, axis=-1)
+
 # Lowest variance of the CMA error for each pol
 min_range = np.argmin(sub_vars, axis=-1)
 wxy = wxys[min_range]
