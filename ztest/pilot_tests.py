@@ -162,83 +162,68 @@ sigTx = firFilter(pulse, symbolsUp)
 print(sigTx.shape)
 print(signal_class.pilot_seq)
 
+rx_signal = sigTx
+ref_symbs = signal_class.pilot_seq()
+os =
 
 # # If synchronization fails, then change sync_bool to 'False'
-# sync_bool = True
+sync_bool = True
 #
-# FRAME_SYNC_THRS = 120 # this is somewhat arbitrary but seems to work well
-# rx_signal = np.atleast_2d(rx_signal)
-# ref_symbs = np.atleast_2d(ref_symbs)
-# pilot_seq_len = ref_symbs.shape[-1]
-# nmodes = rx_signal.shape[0]
-# assert rx_signal.shape[-1] >= (frame_len + 2*pilot_seq_len)*os, "Signal must be at least as long as frame"
+FRAME_SYNC_THRS = 120 # this is somewhat arbitrary but seems to work well
+rx_signal = np.atleast_2d(rx_signal)
+ref_symbs = np.atleast_2d(ref_symbs)
+pilot_seq_len = ref_symbs.shape[-1]
+nmodes = rx_signal.shape[0]
+assert rx_signal.shape[-1] >= (frame_len + 2*pilot_seq_len) * os, "Signal must be at least as long as frame"
 #
-# mode_sync_order = np.zeros(nmodes, dtype=int)
-# not_found_modes = np.arange(0, nmodes)
-# search_overlap = 2 # fraction of pilot_sequence to overlap
-# search_window = pilot_seq_len * os
-# step = search_window // search_overlap
-# # we only need to search the length of one frame*os plus some buffer (the extra step)
-# num_steps = (frame_len*os)//step + 1
-# # Now search for every mode independent
-# shift_factor = np.zeros(nmodes, dtype=int)
-# # Search based on equalizer error. Avoid one pilot_seq_len part in the beginning and
-# # end to ensure that sufficient symbols can be used for the search
-# sub_vars = np.ones((nmodes, num_steps)) * 1e2
-# wxys = np.zeros((num_steps, nmodes, nmodes, Ntaps), dtype=rx_signal.dtype)
-# for i in np.arange(search_overlap, num_steps): # we avoid one step at the beginning
-#     tmp = rx_signal[:, i*step:i*step+search_window]
-#     wxy, err_out = equalisation.equalise_signal(tmp, os, mu, M_pilot, Ntaps=Ntaps, **eqargs)
-#     wxys[i] = wxy
-#     sub_vars[:,i] = np.var(err_out, axis=-1)
-# # Lowest variance of the CMA error for each pol
-# min_range = np.argmin(sub_vars, axis=-1)
-# wxy = wxys[min_range]
-# for l in range(nmodes):
-#     idx_min = min_range[l]
-#     # Extract a longer sequence to ensure that the complete pilot sequence is found
-#     longSeq = rx_signal[:, (idx_min)*step-search_window: (idx_min )*step+search_window]
-#     # Apply filter taps to the long sequence and remove coarse FO
-#     wx1 = wxy[l]
-#     symbs_out = equalisation.apply_filter(longSeq,os,wx1)
-#     foe_corse = phaserecovery.find_freq_offset(symbs_out)
-#     symbs_out = phaserecovery.comp_freq_offset(symbs_out, foe_corse)
-#     # Check for pi/2 ambiguties and verify all
-#     max_phase_rot = np.zeros(nmodes, dtype=np.float64)
-#     found_delay = np.zeros(nmodes, dtype=np.int32)
-#     for ref_pol in not_found_modes:
-#         ix, dat, ii, ac = ber_functions.find_sequence_offset_complex(ref_symbs[ref_pol], symbs_out[l])
-#         found_delay[ref_pol] = -ix
-#         max_phase_rot[ref_pol] = ac
-#     # Check for which mode found and extract the reference delay
-#     max_sync_pol = np.argmax(max_phase_rot)
-#     if max_phase_rot[max_sync_pol] < FRAME_SYNC_THRS: #
-#         warnings.warn("Very low autocorrelation, likely the frame-sync failed")
-#         sync_bool = False
-#     mode_sync_order[l] = max_sync_pol
-#     symb_delay = found_delay[max_sync_pol]
-#     # Remove the found reference mode
-#     not_found_modes = not_found_modes[not_found_modes != max_sync_pol]
-#     # New starting sample
-#     shift_factor[l] = (idx_min)*step + os*symb_delay - search_window
+mode_sync_order = np.zeros(nmodes, dtype=int)
+not_found_modes = np.arange(0, nmodes)
+search_overlap = 2 # fraction of pilot_sequence to overlap
+search_window = pilot_seq_len * os
+step = search_window // search_overlap
+# we only need to search the length of one frame*os plus some buffer (the extra step)
+num_steps = (frame_len*os)//step + 1
+# Now search for every mode independent
+shift_factor = np.zeros(nmodes, dtype=int)
+# Search based on equalizer error. Avoid one pilot_seq_len part in the beginning and
+# end to ensure that sufficient symbols can be used for the search
+sub_vars = np.ones((nmodes, num_steps)) * 1e2
+wxys = np.zeros((num_steps, nmodes, nmodes, Ntaps), dtype=rx_signal.dtype)
+for i in np.arange(search_overlap, num_steps): # we avoid one step at the beginning
+    tmp = rx_signal[:, i*step:i*step+search_window]
+    wxy, err_out = equalisation.equalise_signal(tmp, os, mu, M_pilot, Ntaps=Ntaps, **eqargs)
+    wxys[i] = wxy
+    sub_vars[:,i] = np.var(err_out, axis=-1)
+# Lowest variance of the CMA error for each pol
+min_range = np.argmin(sub_vars, axis=-1)
+wxy = wxys[min_range]
+for l in range(nmodes):
+    idx_min = min_range[l]
+    # Extract a longer sequence to ensure that the complete pilot sequence is found
+    longSeq = rx_signal[:, (idx_min)*step-search_window: (idx_min )*step+search_window]
+    # Apply filter taps to the long sequence and remove coarse FO
+    wx1 = wxy[l]
+    symbs_out = equalisation.apply_filter(longSeq,os,wx1)
+    foe_corse = phaserecovery.find_freq_offset(symbs_out)
+    symbs_out = phaserecovery.comp_freq_offset(symbs_out, foe_corse)
+    # Check for pi/2 ambiguties and verify all
+    max_phase_rot = np.zeros(nmodes, dtype=np.float64)
+    found_delay = np.zeros(nmodes, dtype=np.int32)
+    for ref_pol in not_found_modes:
+        ix, dat, ii, ac = ber_functions.find_sequence_offset_complex(ref_symbs[ref_pol], symbs_out[l])
+        found_delay[ref_pol] = -ix
+        max_phase_rot[ref_pol] = ac
+    # Check for which mode found and extract the reference delay
+    max_sync_pol = np.argmax(max_phase_rot)
+    if max_phase_rot[max_sync_pol] < FRAME_SYNC_THRS: #
+        warnings.warn("Very low autocorrelation, likely the frame-sync failed")
+        sync_bool = False
+    mode_sync_order[l] = max_sync_pol
+    symb_delay = found_delay[max_sync_pol]
+    # Remove the found reference mode
+    not_found_modes = not_found_modes[not_found_modes != max_sync_pol]
+    # New starting sample
+    shift_factor[l] = (idx_min)*step + os*symb_delay - search_windoww
 
-# Transmitter parameters:
-paramTx = parameters()
-paramTx.M   = 16           # order of the modulation format
-paramTx.Rs  = 32e9         # symbol rate [baud]
-paramTx.SpS = 16           # samples per symbol
-paramTx.pulse = 'rrc'      # pulse shaping filter
-paramTx.Ntaps = 4096     # number of pulse shaping filter coefficients
-paramTx.alphaRRC = 0.01    # RRC rolloff
-paramTx.Pch_dBm = -2        # power per WDM channel [dBm]
-paramTx.Nch     = 8       # number of WDM channels
-paramTx.Fc      = 193.1e12 # central optical frequency of the WDM spectrum
-paramTx.lw      = 100e3    # laser linewidth in Hz
-paramTx.freqSpac = 37.5e9  # WDM grid spacing
-paramTx.Nmodes = 2         # number of signal modes [2 for polarization multiplexed signals]
-paramTx.Nbits = int(np.log2(paramTx.M)*1e3) # total number of bits per polarization
 
-# generate WDM signal
-sigWDM_Tx, symbTx_, paramTx = simpleWDMTx(paramTx)
 
-print(sigWDM_Tx.shape)
