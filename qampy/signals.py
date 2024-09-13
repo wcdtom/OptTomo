@@ -39,6 +39,7 @@ import numpy as np
 import abc
 import fractions
 import warnings
+import copy
 
 from qampy import helpers
 from qampy.core import resample
@@ -662,8 +663,10 @@ class SignalQAMGrayCoded(SignalBase):
         coded_symbols, _graycode, encoding, bitmap_mtx = cls._generate_mapping(M, dtype=dtype)
         Nbits = int(N * np.log2(M))
         bits = bitclass(Nbits, nmodes=nmodes, **kwargs)
-        obj = cls._modulate(bits, encoding, coded_symbols, dtype=dtype)
-        obj = obj.view(cls)
+        out_symbs = cls._modulate(bits, encoding, coded_symbols, dtype=dtype)
+        out_symbs_ = copy.deepcopy(out_symbs)
+        obj = out_symbs.view(cls)
+        obj._symbTx = out_symbs_.transpose(1, 0)
         obj._bitmap_mtx = bitmap_mtx
         obj._encoding = encoding
         obj._coded_symbols = coded_symbols
@@ -769,7 +772,10 @@ class SignalQAMGrayCoded(SignalBase):
         for i in range(symbs.shape[0]):
             out[i], _, idx = make_decision(np.copy(symbs[i]), coded_symbols) # need a copy to avoid a pythran error
         bits = cls._demodulate(idx, encoding)
-        obj = np.asarray(out).view(cls)
+        out = np.asarray(out)
+        out_symbs_ = copy.deepcopy(out)
+        obj = out.view(cls)
+        obj._symbTx = out_symbs_.transpose(1, 0)
         obj._M = M
         obj._fb = fb
         obj._fs = fb
@@ -817,7 +823,10 @@ class SignalQAMGrayCoded(SignalBase):
         #    out.append( cls._modulate(arr[i], encoding, M))
         out = cls._modulate(arr, encoding, coded_symbols, dtype)
         # out = np.asarray(out)
-        obj = np.asarray(out).view(cls)
+        out = np.asarray(out)
+        out_symbs_ = copy.deepcopy(out)
+        obj = out.view(cls)
+        obj._symbTx = out_symbs_.transpose(1, 0)
         obj._M = M
         obj._fb = fb
         obj._fs = fb
@@ -873,6 +882,9 @@ class SignalQAMGrayCoded(SignalBase):
     @property
     def symbols(self):
         return self._symbols
+
+    def symbTx(self):
+        return self._symbTx
 
     @property
     def coded_symbols(self):
@@ -989,8 +1001,11 @@ class QPSKfromBERT(SignalQAMGrayCoded):
         bits = np.zeros((nmodes,Nbits), dtype=bool)
         bits[:,::2] = bitsI
         bits[:,1::2] = bitsQ
-        obj = cls._modulate(bits, encoding, coded_symbols, dtype=dtype)
-        obj = obj.view(cls)
+        out = cls._modulate(bits, encoding, coded_symbols, dtype=dtype)
+        out = np.asarray(out)
+        out_symbs_ = copy.deepcopy(out)
+        obj = out.view(cls)
+        obj._symbTx = out_symbs_.transpose(1, 0)
         obj._bitmap_mtx = bitmap_mtx
         obj._encoding = encoding
         obj._coded_symbols = coded_symbols
@@ -1001,6 +1016,9 @@ class QPSKfromBERT(SignalQAMGrayCoded):
         obj._bits = bits
         obj._symbols = obj.copy()
         return obj
+
+    def symbTx(self):
+        return self._symbTx
 
 class SymbolOnlySignal(SignalQAMGrayCoded):
     """
@@ -1049,8 +1067,11 @@ class SymbolOnlySignal(SignalQAMGrayCoded):
             coded_symbols = symbols
         else:
             coded_symbols = symbols.astype(dtype)
-        obj = np.random.choice(symbols, (nmodes, N))
-        obj = obj.view(cls)
+        out = np.random.choice(symbols, (nmodes, N))
+        out = np.asarray(out)
+        out_symbs_ = copy.deepcopy(out)
+        obj = out.view(cls)
+        obj._symbTx = out_symbs_.transpose(1, 0)
         obj._coded_symbols = coded_symbols
         obj._M = M
         obj._fb = fb
@@ -1104,7 +1125,10 @@ class SymbolOnlySignal(SignalQAMGrayCoded):
         out = np.empty_like(symbs)
         for i in range(symbs.shape[0]):
             out[i] = make_decision(np.ascontiguousarray(symbs[i]), coded_symbols)[0]
-        obj = np.asarray(out).view(cls)
+        out = np.asarray(out)
+        out_symbs_ = copy.deepcopy(out)
+        obj = out.view(cls)
+        obj._symbTx = out_symbs_.transpose(1, 0)
         M = coded_symbols.size
         obj._M = M
         obj._coded_symbols = coded_symbols
@@ -1139,6 +1163,9 @@ class SymbolOnlySignal(SignalQAMGrayCoded):
 
     def est_snr(self, signal_rx=None):
         raise NotImplementedError("SymbolOnlySignal class does not have bits snr estimation not possible")
+
+    def simbTx(self):
+        return self._symbTx
 
 class ResampledQAM(SignalQAMGrayCoded):
     """
@@ -1251,7 +1278,9 @@ class TDHQAMSymbols(SignalBase):
         idx, idx1, idx2 = cls._cal_symbol_idx(N, f_M, f_M1)
         out[:, idx1] = syms1
         out[:, idx2] = syms2
+        out_symbs_ = copy.deepcopy(out)
         obj = out.view(cls)
+        obj._symbTx = out_symbs_.transpose(1, 0)
         obj._symbols_M1 = syms1
         obj._symbols_M2 = syms2
         obj._powratio = scale
@@ -1308,6 +1337,9 @@ class TDHQAMSymbols(SignalBase):
     def symbols_M2(self):
         return self._symbols_M2
 
+    def symbTx(self):
+        return self._symbTx
+
     @property
     def fr(self):
         return self._fr
@@ -1356,7 +1388,9 @@ class TDHQAMSymbols(SignalBase):
         idx, idx1, idx2 = cls._cal_symbol_idx(N, f_M, f_M1)
         out[:, idx1] = syms_M1
         out[:, idx2] = syms_M2
+        out_symbs_ = copy.deepcopy(out)
         obj = out.view(cls)
+        obj._symbTx = out_symbs_.transpose(1, 0)
         obj._symbols_M1 = syms_M1
         obj._symbols_M2 = syms_M2
         obj._powratio = scale
@@ -1500,7 +1534,9 @@ class SignalWithPilots(SignalBase):
         symbs = dataclass(M, np.count_nonzero(idx_dat), nmodes=nmodes, dtype=dtype, **kwargs)
         out_symbs[:, idx_dat] = symbs
         out_symbs = np.tile(out_symbs, nframes)
+        out_symbs_ = copy.deepcopy(out_symbs)
         obj = out_symbs.view(cls)
+        obj._symbTx = out_symbs_.transpose(1, 0)
         if "fb" in kwargs:
             obj._fb = kwargs.pop("fb")
         else:
@@ -1622,7 +1658,9 @@ class SignalWithPilots(SignalBase):
         out_symbs[:, idx_pil] = pilots
         out_symbs[:, idx_dat] = payload[:, :Ndat]
         out_symbs = np.tile(out_symbs, nframes)
+        out_symbs_ = copy.deepcopy(out_symbs)
         obj = out_symbs.view(cls)
+        obj._symbTx = out_symbs_.transpose(1, 0)
         obj._fs = payload.fb
         obj._fb = payload.fb
         obj._pilot_scale = pilot_scale
@@ -1664,6 +1702,9 @@ class SignalWithPilots(SignalBase):
     @property
     def symbols(self):
         return self._symbols
+
+    def symbTx(self):
+        return self._symbTx
 
     @property
     def nframes(self):
@@ -1721,11 +1762,14 @@ class SignalWithPilots(SignalBase):
         eqargs.update(kwargs)
         mu = eqargs.pop("mu")
         Ntaps = eqargs.pop("Ntaps")
-        shift_factors, coarse_foe, mode_alignment, wx1, sync_bool = pilotbased_receiver.frame_sync(self, self.pilot_seq, self.os,
-                                                                              mu=mu,
-                                                                              Ntaps=Ntaps,
-                                                                              frame_len=self.frame_len,
-                                                                              M_pilot=self.Mpilots, **eqargs)
+        shift_factors, coarse_foe, mode_alignment, wx1, sync_bool = (
+            pilotbased_receiver.frame_sync(self,
+                                           self.pilot_seq,
+                                           self.os,
+                                           mu=mu,
+                                           Ntaps=Ntaps,
+                                           frame_len=self.frame_len,
+                                           M_pilot=self.Mpilots, **eqargs))
         self[:,:] = self[mode_alignment,:]
         shift_factors[shift_factors<0] += self.frame_len*self.os # we don't really want negative shift factors
         self.shiftfctrs = shift_factors[mode_alignment]
