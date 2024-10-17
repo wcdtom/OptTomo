@@ -4,3 +4,5 @@ numpy ~= 1.24.4
 matplotlib ~= 3.9.0
 scipy ~= 1.13.1
 tqdm ~= 4.66.4
+ns.py ~= 0.4.3
+simpy ~= 4.1.1
