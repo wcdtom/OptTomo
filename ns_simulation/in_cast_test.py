@@ -12,7 +12,7 @@ from ns.switch.switch import SimplePacketSwitch
 def packet_arrival():
     """Packets arrive with a constant interval of 0.1 seconds."""
     # 10G
-    return 0.1
+    return 512/(10**10)
 
 
 def packet_size():
@@ -22,15 +22,15 @@ def packet_size():
 
 def delay_dist():
     """Network wires experience a constant propagation delay of 0.1 seconds."""
-    # 10m
-    return 0.1
+    # 10m: 10/(2*(10**8))
+    return 10/(2*(10**8))
 
 
 # 1 * receiver, in_cast_degree * sender, 1 * switch
-in_cast_degree = 8
-port_rate_bps = 16384  # bps
+in_cast_degree = 4
+port_rate_bps = 10**10  # bps
 # buffer_size=1000 # in packets
-flow_size = 100000  # in bytes
+flow_size = 5*1024*1024  # in bytes
 
 env = simpy.Environment()
 
@@ -101,7 +101,7 @@ agg_node.demux.outs[0].out = wire2_upstream
 wire2_upstream.out = switch
 
 
-env.run(until=1000)
+env.run(until=100000)
 
 
 
