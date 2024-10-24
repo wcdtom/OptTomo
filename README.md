@@ -47,5 +47,5 @@ in advance: $G$ and $K=Re[G^{H}G]^{-1}$ is fixed.
 > **STEP 2**: $\gamma^{'} = W_{re}A_{1,re} - W_{im}A_{1,im}$ --> matrix vector multiplication with $Z \times T_{s}$
 and $T_{s} \times 1 =  4 \times Z \times T_{s} \approx 10^8$ FLOP and $\approx$ 800MB memory for storage the precomputed matrix $W_{re}, W_{im} = [K G_{re}^{H}], [K G_{im}^{H}]$ (in FP32)
 * GTX 4060: (FP32)15TFLOPS, (GDDR6)8GB, Memory Bandwidth 272GB/s 
---> Execution time: sub-second (theory)
+--> Execution time: sub-millisecond (theory)
 * Tested on Apple M1 ARM-based system-on-a-chip (1024 ALU, 2.6TFLOPS in FP32): $\approx$ 100ms
