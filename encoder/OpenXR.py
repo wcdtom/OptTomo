@@ -95,11 +95,6 @@ def BCH_248_231_encoder(L, encoder):
         L_star[i, :] = padded_encoded[247:124]
     return L_star
 
-
-
-
-    return L_star
-
 def iFEC_encoder_fast(bits, M=None):
     pass
 
