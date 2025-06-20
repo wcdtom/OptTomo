@@ -8,7 +8,7 @@ log = logging.getLogger("bchcoder")
 
 class BchCoder:
 
-    def __init__(self, n, b, d, r_poly, g_poly):
+    def __init__(self, n, d, r_poly, g_poly):
         '''
 
         :param n: total bit length = information bits + BCH conding bits
@@ -24,7 +24,7 @@ class BchCoder:
         t: error correction capability, e.g., for BCH(255,239), t=2
         '''
         self.n = n
-        self.b = b
+        # self.b = b
         self.d = d
         self.q = 2
         self.r_poly = r_poly.set_domain(GF(self.q))
@@ -34,8 +34,8 @@ class BchCoder:
         # other n values will return None
         self.k = n - g_poly.degree()
         self.t = (self.d - 1) // 2
-        log.info("BchCoder(n={},k={},q={},m={},b={},d={}, g={}) initiated"
-                 .format(self.n, self.k, self.q, self.m, self.b, self.d, self.g_poly))
+        log.info("BchCoder(n={},k={},q={},m={}, d={}, g={}) initiated"
+                 .format(self.n, self.k, self.q, self.m, self.d, self.g_poly))
 
     def encode(self, msg_poly):
         log.info("msg: {}".format(msg_poly))
@@ -50,9 +50,10 @@ class BchCoder:
         log.debug("field: {}".format(pow_dict))
         log.debug("msg: {}".format(msg_poly))
         s = []
-        for i in range(self.b, self.b + self.d - 1):
+        # for i in range(self.b, self.b + self.d - 1):
+        #     s.append((Poly(msg_poly.eval(alpha ** i), alpha) % self.r_poly).set_domain(GF(self.q)))
+        for i in range(self.d - 1):
             s.append((Poly(msg_poly.eval(alpha ** i), alpha) % self.r_poly).set_domain(GF(self.q)))
-
         log.debug("s: {}".format(s))
 
         error = Poly(0, alpha)
