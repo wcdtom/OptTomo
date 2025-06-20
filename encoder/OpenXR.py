@@ -88,10 +88,14 @@ def BCH_248_231_encoder(L):
 def iFEC_encoder_fast(bits, M=None):
     pass
 
-def interleaver():
-    '''
+def interleaver(LL_1_4arr):
+    # short interleaver
+    LL_1_fed = LL_1_4arr.reshape(124,124)
+    for i in range (0,124):
+        shift_value = i mod 31
+        LL_1_short_interleaver = np.roll(LL_1_fed, shift_value, axis = 1)
 
-    :return:
-    '''
+
+
     pass
 
