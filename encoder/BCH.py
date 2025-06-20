@@ -26,7 +26,7 @@ from sympy.abc import x, alpha
 from sympy import Poly
 from encoder.bch.bchcodegenerator import BchCodeGenerator
 from encoder.bch.bchcoder import BchCoder
-from padding.padding import *
+from encoder.bch.padding import *
 import numpy as np
 import sys
 import logging

@@ -37,7 +37,8 @@ def minimal_poly(i, n, q, irr_poly):
 def power_dict(n, irr, p):
     result = dict()
     for i in range(1, n + 1):
-        test_poly = (Poly(alpha ** i, alpha) % irr).set_domain(GF(p))
+        # test_poly = (Poly(alpha ** i, alpha) % irr).set_domain(GF(p))
+        test_poly = (Poly(alpha ** i, alpha) % irr).trunc(p)
         result[tuple(test_poly.all_coeffs())] = i
     return result
 
