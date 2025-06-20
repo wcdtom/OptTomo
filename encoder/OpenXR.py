@@ -1,6 +1,10 @@
 import numpy as np
+from encoder.bch.bchcodegenerator import BchCodeGenerator
+from encoder.bch.bchcoder import BchCoder
+from encoder.bch.padding import *
+from encoder.bch.mathutils import *
 
-def iFEC_encoder(bits, M=None):
+def iFEC_encoder(bits, bch_encoder, M=None):
     '''
 
     :return:
@@ -73,16 +77,27 @@ def iFEC_encoder(bits, M=None):
                         L_2_i[v, k*31:] = M[pair[0], pair[1], :, X_i[l]]
                     if k==3:
                         v += 1
-        L_i = np.concatenate((L_2_i, L_1_i),axis=1)
+        L_i = np.concatenate((L_1_i, L_2_i),axis=1)
         LL_1_i = BCH_248_231_encoder(L_i)
         row_block = int((i+8)%9)
         M[row_block,:,:,:] = LL_1_i
 
     return M
 
-def BCH_248_231_encoder(L):
-
+def BCH_248_231_encoder(L, encoder):
     L_star = np.zeros((31, 124))
+    for i in range(L.shape[0]):
+        input_arr = L[i,:]
+        padded_tx = padding(input_arr, 239)
+        encoded = encoder(msg_poly=Poly(padded_tx, x))
+        encoded = np.array(encoded)
+        padded_encoded = padding(encoded, 248)
+        L_star[i, :] = padded_encoded[247:124]
+    return L_star
+
+
+
+
     return L_star
 
 def iFEC_encoder_fast(bits, M=None):
