@@ -116,3 +116,25 @@ def short_interleaver(LL_1_4arr):
         LL_1_short_interleaver[i,:] = np.roll(LL_1_fed[i,:], shift_value)
     return LL_1_short_interleaver
 
+def long_interleaver(LL_1_short_interleaver_9arr):
+    LL_1_long_interleaver = np.zeros(1116,124)
+    LL_1_fed = LL_1_short_interleaver_9arr.resize(1116,124)
+    order_matrix = [0, 7, 14, 21, 28, 35, 42, 49, 56,
+                    1, 8, 15, 22, 29, 36, 43, 50, 57,
+                    2, 9, 16, 23, 30, 37, 44, 51, 58,
+                    3, 10, 17, 24, 31, 38, 45, 52, 59,
+                    4, 11, 18, 25, 32, 39, 46, 53, 60,
+                    5, 12, 19, 26, 33, 40, 47, 54, 61,
+                    6, 13, 20, 27, 34, 41, 48, 55]
+    for i in range (18):
+        for j, k in enumerate(order_matrix):
+            get_index = 18 * k + i
+            put_index = 62 * i + j
+            if j % 2 == 0:
+                LL_1_long_interleaver[put_index, :] = LL_1_fed[get_index, :]
+            else:
+                temp_row = LL_1_fed[get_index, :]
+                shifted_row = np.roll(temp_row, 1)
+                LL_1_long_interleaver[put_index, :] = shifted_row
+    return LL_1_long_interleaver
+
