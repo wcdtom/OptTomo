@@ -1,18 +1,9 @@
-"""
-=================================================================
-Advanced models for optical transmitters (:mod:`optic.models.tx`)
-=================================================================
-
-.. autosummary::
-   :toctree: generated/
-
-   simpleWDMTx          -- Implement a simple WDM transmitter.
-"""
 # 3rd party library
 import numpy as np
 from tqdm.notebook import tqdm
 
-from optic.dsp.core import pnorm, pulseShape, signal_power, upsample, phaseNoise
+from optic.dsp.core import (phaseNoise, pnorm, pulseShape,
+                            signalPower, upsample)
 from optic.models.devices import iqm
 from optic.comm.modulation import grayMapping, modulateGray
 
@@ -21,8 +12,8 @@ try:
 except ImportError:
     from optic.dsp.core import firFilter
 
-# local library
-from qampy.signals import SignalWithPilots
+from optic.comm.sources import symbolSource
+from optic.utils import parameters
 
 # sys library
 import logging as logg
@@ -30,7 +21,7 @@ import logging as logg
 
 class pilotWDMTx:
     """
-     Implement a simple WDM transmitter.
+     Implement a pilot-inserted WDM transmitter.
 
      Generates a complex baseband waveform representing a WDM signal with
      arbitrary number of carriers
@@ -79,6 +70,12 @@ class pilotWDMTx:
 
      """
     def __init__(self, param, modulated=True):
+        # others
+        param.seed = getattr(param, "seed", 42)
+        param.probDist = getattr(param, "probDist", "uniform")
+        param.shapingFactor = getattr(param, "shapingFactor", 0)
+        param.mzmScale = getattr(param, "mzmScale", 0.5)
+        param.laserLinewidth = getattr(param, "laserLinewidth", 100e3)
         # check input parameters
         param.M = getattr(param, "M", 16)
         param.constType = getattr(param, "constType", "qam")
@@ -103,6 +100,7 @@ class pilotWDMTx:
         # Cen: if phasePilot is 0, there is no phase pilot; otherwise, it is the interval of every phase pilot
         # the first pilot is inserted at the (pilotSeq + phasePilot - 1)-th symbol (symbol index starts from 0)
         param.phasePilot = getattr(param, "phasePilot", 32)
+        param.pilotM = getattr(param, "pilotM", 4)
 
         # transmitter parameters
         self.Ts = 1 / param.Rs  # symbol period [s]
@@ -142,7 +140,7 @@ class pilotWDMTx:
             (len(t), param.Nmodes, param.Nch), dtype="complex"
         )
         self.symbTxWDM = np.zeros(
-        (len(t) // param.SpS, param.Nmodes, param.Nch), dtype="complex"
+        (self.Nsymb, param.Nmodes, param.Nch), dtype="complex"
         )
         self.sigTxWDM = np.zeros((len(t), param.Nmodes), dtype="complex")
         self.Psig = 0
@@ -155,9 +153,28 @@ class pilotWDMTx:
         if param.pulse == "nrz":
             pulse = pulseShape("nrz", param.SpS)
         elif param.pulse == "rrc":
-           pulse = pulseShape("rrc", param.SpS, N=param.Ntaps, alpha=param.alphaRRC, Ts=Ts)
+           pulse = pulseShape("rrc", param.SpS, N=param.Ntaps, alpha=param.alphaRRC, Ts=self.Ts)
 
         pulse = pulse / np.max(np.abs(pulse))
+
+        idx, idx_data, idx_pilot = self._cal_pilot_idx(param)
+        paramPilot = parameters()
+        paramPilot.nSymbols = np.count_nonzero(idx_pilot)
+        paramPilot.M = param.pilotM
+        paramPilot.constType = param.constType
+        paramPilot.dist = param.probDist
+        paramPilot.shapingFactor = param.shapingFactor
+        paramPilot.seed = param.seed
+        self.pilots = symbolSource(paramPilot)
+
+        paramSymb = parameters()
+        paramSymb.nSymbols = np.count_nonzero(idx_data)
+        paramSymb.M = param.M
+        paramSymb.constType = param.constType
+        paramSymb.dist = param.probDist
+        paramSymb.shapingFactor = param.shapingFactor
+        paramSymb.seed = param.seed
+
 
         for indCh in tqdm(range(param.Nch), disable=not (param.prgsBar)):
             logg.info(
@@ -170,20 +187,14 @@ class pilotWDMTx:
                     "  mode #%d\t power: %.2f dBm"
                     % (indMode, 10 * np.log10((self.Pch[indCh] / param.Nmodes) / 1e-3))
                 )
+                symbTX = np.zeros(self.Nsymb)
+                symbTX[:, idx_pilot] = self.pilots
+                symbTX[:, idx_data] = symbolSource(paramSymb)
 
-                # generate random bits
-                signals = SignalWithPilots(M=param.M,
-                                           frame_len=self.NSpF,
-                                           pilot_seq_len=param.pilotSeq,
-                                           pilot_ins_rat=param.phasePilot,
-                                           nframes=param.Nframes,
-                                           nmodes=param.Nmodes,
-                                           fb=20e9)
-                symbTx = signals.symbTx()
                 # normalize symbols energy to 1
                 symbTx = symbTx / np.sqrt(Es)
 
-                self.symbTxWDM[:, indMode, indCh] = symbTx
+                self.symbTxWDM[:, indMode, indCh] = symbTx.reshape(-1)
 
                 # upsampling
                 symbolsUp = upsample(symbTx, param.SpS)
@@ -200,7 +211,7 @@ class pilotWDMTx:
     def _modulate(self, param):
         # generate LO field with phase noise
         (length, modes, channels) = self.pulseTxWDM.shape
-        ϕ_pn_lo = phaseNoise(param.lw, length, 1 / self.Fs)
+        ϕ_pn_lo = phaseNoise(param.laserLinewidth, length, 1 / self.Fs)
         sigLO = np.exp(1j * ϕ_pn_lo)
 
         for indCh in range(channels):
@@ -208,14 +219,14 @@ class pilotWDMTx:
             for indMode in range(modes):
                 sigTx = self.pulseTxWDM[:, indMode, indCh]
 
-                sigTxCh = iqm(sigLO, 0.5 * sigTx)
+                sigTxCh = iqm(sigLO, param.mzmScale * sigTx)
                 sigTxCh = np.sqrt(self.Pch[indCh] / param.Nmodes) * pnorm(sigTxCh)
 
                 self.sigTxWDM[:, indMode] += sigTxCh * np.exp(
                    1j * 2 * np.pi * (self.freqGrid[indCh] / self.Fs) * np.arange(0, self.Nsymb * param.SpS)
                 )
 
-            Pmode += signal_power(sigTxCh)
+            Pmode += signalPower(sigTxCh)
             self.Pch_launch[indCh] = 10 * np.log10(Pmode / 1e-3)
             logg.info(
                 "channel %d\t power: %.2f dBm\n" % (indCh, 10 * np.log10(Pmode / 1e-3))
@@ -223,6 +234,20 @@ class pilotWDMTx:
         self.Psig += Pmode
         logg.info("total WDM signal power: %.2f dBm" % (10 * np.log10(self.Psig / 1e-3)))
 
+    def _cal_pilot_idx(self, param):
+        idx = np.arange(self.Nsymb)
+        idx_pil_seq = idx < param.pilot_seq_len
+        if param.pilot_ins_rat == 0 or param.pilot_ins_rat is None:
+            idx_pil = idx_pil_seq
+        else:
+            if (self.Nsymb - param.pilot_seq_len) % param.pilot_ins_rat != 0:
+                raise ValueError("Frame without pilot sequence divided by pilot rate needs to be an integer")
+            N_ph_frames = (self.Nsymb - param.pilot_seq_len) // param.pilot_ins_rat
+            idx_ph_pil = ((idx - param.pilot_seq_len) % param.pilot_ins_rat != 0) & (idx - param.pilot_seq_len > 0)
+            idx_ph_pil[param.pilot_seq_len] = ~ idx_ph_pil[param.pilot_seq_len]
+            idx_pil = ~idx_ph_pil  # ^ idx_pil_seq
+        idx_dat = ~idx_pil
+        return idx, idx_dat, idx_pil
 
     def _digital_subcarrier_modulate(self, param):
         pass
