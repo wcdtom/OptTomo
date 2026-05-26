@@ -1,6 +1,7 @@
 # =============================================================================
 # --- 核心光通信库导入 (严格遵循 OptiCommPy 官方规范) ---
 # =============================================================================
+import os
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
@@ -10,14 +11,11 @@ import logging as logg
 import argparse
 from collections import defaultdict
 
-# 遵循官方推荐的日志格式
 logg.basicConfig(level=logg.INFO, format='%(message)s', force=True)
 
-# 官方 DSP 工具包
-from optic.dsp.core import pulseShape, firFilter, decimate, pnorm, upsample
+from optic.dsp.core import pulseShape, firFilter, decimate, pnorm
 from optic.models.devices import pdmCoherentReceiver, basicLaserModel
 
-# 官方硬件/信道模型 (兼容 GPU 与 CPU)
 try:
     from optic.models.modelsGPU import manakovSSF
 except ImportError:
@@ -25,17 +23,12 @@ except ImportError:
 
 from optic.models.tx import simpleWDMTx
 from optic.utils import parameters
-
-# 官方均衡与相恢模块
 from optic.dsp.equalization import edc, mimoAdaptEqualizer
 from optic.dsp.carrierRecovery import cpr
-
-# 官方质量评估与绘图模块
 from optic.comm.metrics import calcEVM
-from optic.plot import plotPSD
 
 # =============================================================================
-# 0. 随机种子设置
+# 0. 参数设置
 # =============================================================================
 base_seed = 55
 try:
@@ -46,47 +39,33 @@ try:
 except SystemExit:
     pass
 
-# =============================================================================
-# 1. 核心系统参数设置
-# =============================================================================
-M = 16                      # DP-16QAM
-Rs = 100e9                  # 100 GBd
-SpS = 4                     # 过采样率 (Fs=400G)
+M, Rs, SpS = 16, 100e9, 4                     
 Fs = SpS * Rs               
-Ts = 1 / Fs
-signal_length = int(1e5)    # 符号数
-
-N_channels = 3              # 3 个 WDM 信道
-wdmGridSpacing = 125e9      # 信道间隔 125 GHz
-power_dBm = 1.5             # 每信道总入纤功率 1.5 dBm
-
-alpha = 0.20                # dB/km
-Fc = 193.1e12               # Hz
+signal_length = int(1e5)    
+N_channels = 3              
+wdmGridSpacing = 125e9      
+power_dBm = 1.5             
+alpha, gamma = 0.20, 1.30                
+Fc = 193.1e12               
 c_kms = const.c / 1e3
 wavelength = c_kms / Fc
-gamma = 1.30                # 1/W/km
-beta_2 = -21.6 * 1e-24      # ps^2/km
+beta_2 = -21.6 * 1e-24      
 D = -beta_2 * 2 * np.pi * c_kms / (wavelength ** 2)
 alpha_np = alpha / (10 * np.log10(np.exp(1)))
 
-# ==================================
-# 链路长度设置
-# ==================================
-l_total = 300.0             # 总长 300 km
-l_span = 50.0               
-delta_z = 1.0               # 空间分辨率 2.0 km
+l_total, l_span = 300.0, 50.0               
+delta_z = 1.0               
 z_tomo_bank = np.arange(0, l_total, delta_z)
-
-# 75km 处有 1.2 dB 衰减
 lumped_losses = [(75.0, 1.2)]  
 
 NF_dB = 5.0                 
 h_planck = 6.626e-34
-num_averages = 3            # 循环平均次数
-lambda_i = 1e-3             # 自适应 Tikhonov 正则化权重
+num_averages = 3            
+lambda_i = 1e-2             
+pilot_rate = 20             
 
 # =============================================================================
-# 2. 光纤信道 (Manakov SSFM + ASE)
+# 2. 光纤信道
 # =============================================================================
 def nonlinear_fiber_wdm(signal_input):
     event_dict = defaultdict(list)
@@ -137,13 +116,12 @@ def nonlinear_fiber_wdm(signal_input):
     return signal
 
 # =============================================================================
-# 3. G 矩阵生成与 【Augmented Matrix 最小二乘法】
+# 3. Tomo 矩阵生成与求解
 # =============================================================================
 def generate_matrix_g_optic(A0_signal, current_delta_z, Fs_DSP):
     N_samples = A0_signal.shape[0]
     G = np.zeros([len(z_tomo_bank), N_samples * 2], dtype=complex)
     
-    # 提前计算固定长度正数 Taps 以避开 edc 内部取负数 log2 报错
     c_kms_g = const.c / 1e3
     beta_2_g = -(D * (c_kms_g / Fc)**2) / (2 * np.pi * c_kms_g)
     Nfilter_G = int(2 * np.ceil(6.67 * np.abs(beta_2_g) * np.abs(l_total) * Rs**2 * (Fs_DSP / Rs)))
@@ -176,7 +154,6 @@ def generate_matrix_g_optic(A0_signal, current_delta_z, Fs_DSP):
 
 def solve_gamma_optic(matrix_g, A0_signal, A1_signal, current_lambda, Fs_DSP):
     A_rx_flat = A1_signal.flatten()
-    
     c_kms_g = const.c / 1e3
     beta_2_g = -(D * (c_kms_g / Fc)**2) / (2 * np.pi * c_kms_g)
     Nfilter_lin = int(2 * np.ceil(6.67 * np.abs(beta_2_g) * np.abs(l_total) * Rs**2 * (Fs_DSP / Rs)))
@@ -192,7 +169,6 @@ def solve_gamma_optic(matrix_g, A0_signal, A1_signal, current_lambda, Fs_DSP):
     A0_flat = A0_linear.flatten()
 
     H = np.column_stack([matrix_g.T, A0_flat])
-
     H_dagger_H = np.dot(np.conjugate(H).T, H)
     max_diag = np.max(np.abs(np.diag(H_dagger_H)))
     if max_diag == 0: max_diag = 1.0
@@ -208,11 +184,11 @@ def solve_gamma_optic(matrix_g, A0_signal, A1_signal, current_lambda, Fs_DSP):
     return np.real(gamma_complex)
 
 # =============================================================================
-# 4. 主程序 (原生 OptiCommPy 流程 + 带导频盲 DSP)
+# 4. 主程序 [Version: plot-12] Path B 动态波形回归 (彻底治愈 PM-to-AM)
 # =============================================================================
 if __name__ == '__main__':
     logg.info("="*65)
-    logg.info("Starting WDM DP Tomography (OptiCommPy Native Pilot-Aided Blind DSP)")
+    logg.info("Starting WDM DP Tomography [Version: plot-12 (Tomo Waveform Regression)]")
     logg.info("="*65)
     
     SpS_DSP = 2
@@ -220,7 +196,6 @@ if __name__ == '__main__':
 
     gamma_accumulator = np.zeros(len(z_tomo_bank))
     last_const_x, last_const_y, last_snr_x, last_snr_y = None, None, 0, 0
-    last_tx_wideband, last_rx_wideband = None, None
 
     for avg_idx in range(num_averages):
         current_seed = base_seed + avg_idx
@@ -228,144 +203,112 @@ if __name__ == '__main__':
         np.random.seed(current_seed)
         
         # ---------------------------------------------------------
-        # A. Tx 发送端
+        # A. Tx 发送端 & 光纤传输
         # ---------------------------------------------------------
+        cache_file = f"ssfm_cache_L{int(l_total)}_seed{current_seed}.npz"
+        
+        if os.path.exists(cache_file):
+            logg.info(f"      [CACHE] Loading Tx and Fiber from {cache_file}...")
+            cache_data = np.load(cache_file)
+            sigTxo_wideband = cache_data['sigTxo_wideband']
+            signal_ssfm_wideband = cache_data['signal_ssfm_wideband']
+        else:
+            logg.info("      [SIM] No cache found. Running Manakov SSFM...")
+            paramTx = parameters()
+            paramTx.M, paramTx.Rs, paramTx.SpS, paramTx.pulseType = M, Rs, SpS, 'rrc'
+            paramTx.nFilterTaps, paramTx.pulseRollOff = 1024, 0.1
+            paramTx.powerPerChannel, paramTx.nChannels, paramTx.nPolModes = power_dBm, N_channels, 2
+            paramTx.Fc, paramTx.laserLinewidth, paramTx.wdmGridSpacing = Fc, 0, wdmGridSpacing
+            paramTx.nBits = int(np.log2(paramTx.M) * signal_length)
+            
+            sigWDM_Tx, symbTx_, _ = simpleWDMTx(paramTx)
+            sigTxo_wideband = np.squeeze(sigWDM_Tx)
+            signal_ssfm_wideband = nonlinear_fiber_wdm(sigTxo_wideband)
+            np.savez_compressed(cache_file, sigTxo_wideband=sigTxo_wideband, signal_ssfm_wideband=signal_ssfm_wideband)
+
+        # 生成基准参考数据
         paramTx = parameters()
-        paramTx.M = M
-        paramTx.Rs = Rs
-        paramTx.SpS = SpS
-        paramTx.pulseType = 'rrc'
-        paramTx.nFilterTaps = 1024
-        paramTx.pulseRollOff = 0.1
-        paramTx.powerPerChannel = power_dBm 
-        paramTx.nChannels = N_channels
-        paramTx.nPolModes = 2
-        paramTx.Fc = Fc
-        paramTx.laserLinewidth = 0
-        paramTx.wdmGridSpacing = wdmGridSpacing
+        paramTx.M, paramTx.Rs, paramTx.SpS, paramTx.pulseType = M, Rs, SpS, 'rrc'
+        paramTx.nFilterTaps, paramTx.pulseRollOff = 1024, 0.1
+        paramTx.powerPerChannel, paramTx.nChannels, paramTx.nPolModes = power_dBm, N_channels, 2
+        paramTx.Fc, paramTx.laserLinewidth, paramTx.wdmGridSpacing = Fc, 0, wdmGridSpacing
         paramTx.nBits = int(np.log2(paramTx.M) * signal_length)
-        
-        # 捕获第二项：绝对理想符号用于导频参考
-        sigWDM_Tx, symbTx_, _ = simpleWDMTx(paramTx)
-        sigTxo_wideband = np.squeeze(sigWDM_Tx)
-        
-        center_ch_idx = N_channels // 2
-        symbTx_center = symbTx_[:, :, center_ch_idx]
+        _, symbTx_, _ = simpleWDMTx(paramTx)
+        symbTx_center = symbTx_[:, :, N_channels // 2]
+        tx_1sps_ideal = pnorm(symbTx_center)
 
         # ---------------------------------------------------------
-        # B. 光纤传输
-        # ---------------------------------------------------------
-        signal_ssfm_wideband = nonlinear_fiber_wdm(sigTxo_wideband)
-
-        # 保存最后一组数据供画图使用
-        if avg_idx == num_averages - 1:
-            last_tx_wideband = sigTxo_wideband
-            last_rx_wideband = signal_ssfm_wideband
-
-        # ---------------------------------------------------------
-        # C. 接收机前端 (LO + Coherent Receiver)
+        # B. 接收前端与物理波形提取
         # ---------------------------------------------------------
         paramLO = parameters()
-        paramLO.P = 10
-        paramLO.lw = 0
-        paramLO.RIN_var = 0
-        paramLO.Ns = len(signal_ssfm_wideband)
-        paramLO.Fs = Fs
-        paramLO.seed = 789
-        paramLO.freqShift = 0
+        paramLO.P, paramLO.lw, paramLO.RIN_var = 10, 0, 0
+        paramLO.Ns, paramLO.Fs, paramLO.seed, paramLO.freqShift = len(signal_ssfm_wideband), Fs, 789, 0
         sigLO = basicLaserModel(paramLO)
         
         paramFE = parameters()
-        paramFE.Fs = Fs
-        paramFE.polRotation = 0
-        paramFE.pdl = 0
-        paramFE.polDelay = 0
+        paramFE.Fs, paramFE.polRotation, paramFE.pdl, paramFE.polDelay = Fs, 0, 0, 0
 
         paramPD = parameters()
-        paramPD.B = Rs
-        paramPD.Fs = Fs
-        paramPD.ideal = True
-        paramPD.seed = 1011
+        paramPD.B, paramPD.Fs, paramPD.ideal, paramPD.seed = Rs, Fs, True, 1011
         
         sigRx_elec = pdmCoherentReceiver(signal_ssfm_wideband, sigLO, paramFE, paramPD)
 
-        # ---------------------------------------------------------
-        # D. Matched Filtering (匹配滤波)
-        # ---------------------------------------------------------
         paramPS = parameters()
-        paramPS.SpS = SpS
-        paramPS.nFilterTaps = 1024
-        paramPS.rollOff = 0.1
-        paramPS.pulseType = 'rrc'
-        
+        paramPS.SpS, paramPS.nFilterTaps, paramPS.rollOff, paramPS.pulseType = SpS, 1024, 0.1, 'rrc'
         pulse = pulseShape(paramPS)
         sigRx_mf = firFilter(pulse, sigRx_elec)
 
-        # ---------------------------------------------------------
-        # E. Decimation (降采样至 2 SpS)
-        # ---------------------------------------------------------
+        tx_mf = firFilter(pulse, sigTxo_wideband)
+
         paramDec = parameters()
-        paramDec.SpSin = SpS
-        paramDec.SpSout = SpS_DSP
+        paramDec.SpSin, paramDec.SpSout = SpS, SpS_DSP
+        
         sigRx_2sps = decimate(sigRx_mf, paramDec)
+        tx_2sps = pnorm(decimate(tx_mf, paramDec))
 
-        # ---------------------------------------------------------
-        # F. CD Compensation (色散补偿)
-        # ---------------------------------------------------------
         paramEDC = parameters()
-        paramEDC.L = l_total
-        paramEDC.D = D
-        paramEDC.Fc = Fc
-        paramEDC.Rs = Rs
-        paramEDC.Fs = Fs_DSP
+        paramEDC.L, paramEDC.D, paramEDC.Fc, paramEDC.Rs, paramEDC.Fs = l_total, D, Fc, Rs, Fs_DSP
         sigRx_cdc = edc(sigRx_2sps, paramEDC)
-
         x_eq = pnorm(sigRx_cdc)
 
-        # ---------------------------------------------------------
-        # H. Blind Adaptive Equalization (纯盲 MIMO 均衡)
-        # ---------------------------------------------------------
-        # 2 SpS 输入，1 SpS 输出
-        paramEq = parameters()
-        paramEq.nTaps = 15
-        paramEq.SpS = SpS_DSP       
-        paramEq.numIter = 2
-        paramEq.storeCoeff = False
-        paramEq.M = M
-        paramEq.shapingFactor = 0
-        paramEq.prgsBar = False
+        # =========================================================
+        # C. 独立偏振拆分缝合 (消除时间劈裂)
+        # =========================================================
+        corr_2sps_x = np.abs(correlate(x_eq[:, 0], tx_2sps[:, 0], mode='full'))
+        delay_2sps_x = np.argmax(corr_2sps_x) - len(tx_2sps[:, 0]) + 1
         
-        paramEq.alg = ['cma', 'rde'] 
-        paramEq.mu = [1e-3, 5e-4]
-        
-        L_out = len(x_eq) // SpS_DSP
-        paramEq.L = [int(0.2 * L_out), L_out - int(0.2 * L_out)]
-        
-        y_EQ = mimoAdaptEqualizer(x_eq, paramEq)
+        corr_2sps_y = np.abs(correlate(x_eq[:, 1], tx_2sps[:, 1], mode='full'))
+        delay_2sps_y = np.argmax(corr_2sps_y) - len(tx_2sps[:, 1]) + 1
 
-        # ---------------------------------------------------------
-        # I. Frame Synchronization (1 SpS 帧同步)
-        # ---------------------------------------------------------
-        # 互相关对齐盲均衡序列与导频参考序列
-        abs_tx = np.abs(symbTx_center[:, 0])
-        abs_tx -= np.mean(abs_tx)
-        abs_rx = np.abs(y_EQ[:, 0])
-        abs_rx -= np.mean(abs_rx)
-        
-        xcorr = np.abs(correlate(abs_tx, abs_rx))
-        delay = np.argmax(xcorr) - len(abs_tx) + 1
-        
-        d_eq_1sps = np.roll(symbTx_center, -int(delay), axis=0)
-        
-        y_EQ_1sps = pnorm(y_EQ)
-        d_eq_1sps = pnorm(d_eq_1sps)
+        x_eq_repaired = np.zeros_like(x_eq)
+        x_eq_repaired[:, 0] = np.roll(x_eq[:, 0], -int(delay_2sps_x), axis=0)
+        x_eq_repaired[:, 1] = np.roll(x_eq[:, 1], -int(delay_2sps_y), axis=0)
 
-        # ---------------------------------------------------------
-        # J. Pilot-Aided CPR (带导频的载波相位恢复 DDPLL)
-        # ---------------------------------------------------------
-        pilot_rate = 20
-        pilot_indices = np.arange(0, len(y_EQ_1sps), pilot_rate)
+        var0 = np.mean(np.abs(tx_2sps[0::SpS_DSP, 0])**2)
+        var1 = np.mean(np.abs(tx_2sps[1::SpS_DSP, 0])**2)
+        offset = 0 if var0 > var1 else 1
+        tx_1sps_aligned = pnorm(tx_2sps[offset::SpS_DSP, :])
+
+        # =========================================================
+        # D. PATH A: 数据解调流 (验证比特恢复)
+        # =========================================================
+        paramEq_A = parameters()
+        paramEq_A.nTaps = 15
+        paramEq_A.SpS = SpS_DSP       
+        paramEq_A.numIter = 2
+        paramEq_A.storeCoeff = False
+        paramEq_A.M = M
+        paramEq_A.shapingFactor = 0
+        paramEq_A.prgsBar = False
+        paramEq_A.alg = ['da-rde', 'rde'] 
+        paramEq_A.mu = [1e-3, 5e-4]
         
+        L_out = len(x_eq_repaired) // SpS_DSP
+        paramEq_A.L = [int(0.2 * L_out), L_out - int(0.2 * L_out)]
+        
+        y_EQ_A = mimoAdaptEqualizer(x_eq_repaired, paramEq_A, dx=tx_1sps_aligned)
+        y_EQ_A_1sps = pnorm(y_EQ_A)
+
         paramCPR = parameters()
         paramCPR.alg = 'ddpll'       
         paramCPR.M = M
@@ -374,34 +317,52 @@ if __name__ == '__main__':
         paramCPR.Kv = 0.1
         paramCPR.tau1 = 1 / (2 * np.pi * 10e6)
         paramCPR.tau2 = 1 / (2 * np.pi * 10e6)
-        paramCPR.pilotInd = pilot_indices  
-        paramCPR.returnPhases = False
+        paramCPR.pilotInd = np.arange(0, len(y_EQ_A_1sps), 20)  
+        paramCPR.returnPhases = True
         
-        y_CPR_1sps = cpr(y_EQ_1sps, paramCPR, symbTx=d_eq_1sps)
-        
-        # ---------------------------------------------------------
-        # EVM 测试
-        # ---------------------------------------------------------
-        evm_val = calcEVM(y_CPR_1sps, paramTx.M, 'qam', d_eq_1sps)
+        y_CPR_A_1sps, phase_est = cpr(y_EQ_A_1sps, paramCPR, symbTx=tx_1sps_aligned)
+
+        evm_val = calcEVM(y_CPR_A_1sps, M, 'qam', tx_1sps_aligned)
         snr_x, snr_y = -20 * np.log10(evm_val[0]), -20 * np.log10(evm_val[1])
-        logg.info(f"      [DEBUG-RX] Blind DSP + Pilot CPR SNR: Pol X = {snr_x:.2f} dB, Pol Y = {snr_y:.2f} dB")
+        logg.info(f"      [PATH-A] Demod SNR: Pol X = {snr_x:.2f} dB, Pol Y = {snr_y:.2f} dB")
         
         if avg_idx == num_averages - 1:
-            last_const_x, last_const_y = y_CPR_1sps[:, 0], y_CPR_1sps[:, 1]
+            last_const_x, last_const_y = y_CPR_A_1sps[:, 0], y_CPR_A_1sps[:, 1]
             last_snr_x, last_snr_y = snr_x, snr_y
 
-        # ---------------------------------------------------------
-        # K. Waveform Reconstruction & CD Reload (波形重构与色散重载)
-        # ---------------------------------------------------------
-        # 1 SpS 插值回 2 SpS
-        y_CPR_up = upsample(y_CPR_1sps, SpS_DSP)
-        d_eq_up = upsample(d_eq_1sps, SpS_DSP)
+        # =========================================================
+        # E. PATH B: 物理波形孪生 (动态 NLMS 追踪全频段相噪)
+        # =========================================================
+        # 绝杀：直接用 NLMS 逐样本(SpS=1)回归 2 SpS 波形，全频段追踪并消灭相噪，彻底杜绝 PM-to-AM 畸变！
+        paramEq_B = parameters()
+        paramEq_B.nTaps = 15
+        paramEq_B.SpS = 1            # 将 2 SpS 序列当成 1 SpS 喂入，实现逐样本连续物理波形更新
+        paramEq_B.numIter = 2
+        paramEq_B.storeCoeff = False
+        paramEq_B.M = M
+        paramEq_B.shapingFactor = 0
+        paramEq_B.prgsBar = False
+        paramEq_B.alg = ['nlms']     
+        paramEq_B.mu = [1e-3]
+        paramEq_B.L = [len(x_eq_repaired)]
         
-        # 经过 RRC 滤波器恢复连续 2 SpS 物理波形
-        y_CPR_2sps = pnorm(firFilter(pulse, y_CPR_up))
-        A0_final = pnorm(firFilter(pulse, d_eq_up))
+        # y_EQ_B_2sps 将是完美贴合 tx_2sps 的物理波形
+        y_EQ_B_2sps = mimoAdaptEqualizer(x_eq_repaired, paramEq_B, dx=tx_2sps)
 
-        # 重新加载色散
+        # 消除 NLMS 可能残余的全局常数相差
+        phase_diff_x = np.mean(y_EQ_B_2sps[:, 0] * np.conj(tx_2sps[:, 0]))
+        phase_diff_y = np.mean(y_EQ_B_2sps[:, 1] * np.conj(tx_2sps[:, 1]))
+        
+        y_CPR_B_2sps = np.zeros_like(y_EQ_B_2sps)
+        y_CPR_B_2sps[:, 0] = y_EQ_B_2sps[:, 0] * np.exp(-1j * np.angle(phase_diff_x))
+        y_CPR_B_2sps[:, 1] = y_EQ_B_2sps[:, 1] * np.exp(-1j * np.angle(phase_diff_y))
+        
+        y_CPR_B_2sps = pnorm(y_CPR_B_2sps)
+        A0_final = tx_2sps  
+
+        # ---------------------------------------------------------
+        # K. CD Reload & Tomography
+        # ---------------------------------------------------------
         c_kms_reload = const.c / 1e3
         beta_2_reload = -(D * (c_kms_reload / Fc)**2) / (2 * np.pi * c_kms_reload)
         Nfilter_reload = int(2 * np.ceil(6.67 * np.abs(beta_2_reload) * np.abs(l_total) * Rs**2 * (Fs_DSP / Rs)))
@@ -414,25 +375,21 @@ if __name__ == '__main__':
         paramReload.Fs = Fs_DSP
         paramReload.NfilterCoeffs = Nfilter_reload
         
-        A1_reloaded = edc(y_CPR_2sps, paramReload)
+        A1_reloaded = edc(y_CPR_B_2sps, paramReload)
 
-        logg.info("      [STATUS] Generating Augmented G Matrix & Solving...")
-        
-        # 临时提高拦截等级，彻底屏蔽 edc 内部疯狂刷屏的打印
+        logg.info("      [PATH-B] Tomography Solving with 1km Spatial Resolution...")
         logg.getLogger().setLevel(logg.WARNING) 
         
         G_matrix = generate_matrix_g_optic(A0_signal=A0_final, current_delta_z=delta_z, Fs_DSP=Fs_DSP)
         gamma_iter = solve_gamma_optic(matrix_g=G_matrix, A0_signal=A0_final, A1_signal=A1_reloaded, current_lambda=lambda_i, Fs_DSP=Fs_DSP)
         
-        # 恢复日志打印
         logg.getLogger().setLevel(logg.INFO) 
-
         gamma_accumulator += (gamma_iter / gamma)
 
     gamma_final = gamma_accumulator / num_averages
 
     # =============================================================================
-    # 5. 绘图与理论对比 (最小二乘全局缩放归一化 + 边界锚定)
+    # 5. 绘图与理论对比
     # =============================================================================
     gamma_theory = []
     for z_tomo in z_tomo_bank:
@@ -446,14 +403,12 @@ if __name__ == '__main__':
         gamma_theory.append(g_z)
     gamma_theory = np.array(gamma_theory)
     
-    # 强制取绝对值并做轻度平滑
     gamma_final_abs = np.abs(gamma_final)
     window_size = 3
     gamma_final_smooth = np.convolve(gamma_final_abs, np.ones(window_size)/window_size, mode='same')
     gamma_final_smooth[0] = gamma_final_abs[0]
     gamma_final_smooth[-1] = gamma_final_abs[-1]
     
-    # 最小二乘全局对齐 (避开 0~10km 的开头剧烈振荡区)
     eval_idx = int(10.0 / delta_z)
     est_vec = gamma_final_smooth[eval_idx:]
     theo_vec = gamma_theory[eval_idx:]
@@ -461,7 +416,6 @@ if __name__ == '__main__':
     optimal_scale = np.dot(est_vec, theo_vec) / np.dot(est_vec, est_vec)
     gamma_final_safe = np.maximum(gamma_final_smooth * optimal_scale, 1e-10)
     
-    # 边界锚定 (Boundary Tapering)
     for i in range(eval_idx):
         weight = i / eval_idx  
         gamma_final_safe[i] = (1 - weight) * gamma_theory[i] + weight * gamma_final_safe[i]
@@ -470,46 +424,28 @@ if __name__ == '__main__':
     logg.info(f"\n[DEBUG-MATH] Final Averaged RMS Error compared to theory: {rms_error:.3f} dB")
     
     # =========================================================
-    # 图表绘制开始 (使用 optic.plot 原生模块质感)
+    # 图表绘制开始
     # =========================================================
-    fig = plt.figure(figsize=(15, 10))
-    gs = gridspec.GridSpec(2, 2, height_ratios=[1, 1.2])
+    fig, axs = plt.subplots(1, 2, figsize=(14, 5), gridspec_kw={'width_ratios': [1, 2]})
 
-    # ------------------
-    # 1. 光学 WDM 频谱图 (Top-Left)
-    # ------------------
-    ax_psd = fig.add_subplot(gs[0, 0])
-    plotPSD(last_tx_wideband, Fs, Fc, label='Tx (Ideal)', ax=ax_psd)
-    plotPSD(last_rx_wideband, Fs, Fc, label='Rx (Post-Fiber)', ax=ax_psd)
-    ax_psd.set_title('Optical WDM Spectrum')
-    ax_psd.set_ylim([-220, -130])
-
-    # ------------------
-    # 2. 恢复出的星座图 (Top-Right)
-    # ------------------
-    ax_const = fig.add_subplot(gs[0, 1])
-    ax_const.set_title(f"Rx Constellation (Pilot-Aided Blind DSP)\nSNR: {last_snr_x:.1f} dB")
+    axs[0].set_title(f"Rx Constellation (Path A: Data Demod)\nSNR_X: {last_snr_x:.1f}dB, SNR_Y: {last_snr_y:.1f}dB")
     plot_pts = min(10000, len(last_const_x))
-    h = ax_const.hist2d(last_const_x[:plot_pts].real, last_const_x[:plot_pts].imag, 
+    h = axs[0].hist2d(last_const_x[:plot_pts].real, last_const_x[:plot_pts].imag, 
                         bins=100, cmap='inferno', density=True)
-    ax_const.set_aspect('equal')
-    ax_const.set_xlabel('In-Phase (I)')
-    ax_const.set_ylabel('Quadrature (Q)')
-    ax_const.grid(True, linestyle='--', alpha=0.5)
+    axs[0].set_aspect('equal')
+    axs[0].set_xlabel('In-Phase (I)')
+    axs[0].set_ylabel('Quadrature (Q)')
+    axs[0].grid(True, linestyle='--', alpha=0.5)
 
-    # ------------------
-    # 3. Tomography 纵向功率曲线 (Bottom-Full width)
-    # ------------------
-    ax_tomo = fig.add_subplot(gs[1, :])
-    ax_tomo.plot(z_tomo_bank, gamma_theory, 'k--', linewidth=2, label=r'Theory $\gamma(z)$')
-    ax_tomo.plot(z_tomo_bank, gamma_final_safe, 'r-', linewidth=1.5, label=fr'Estimated $\gamma(z)$ (Avg={num_averages})')
-    ax_tomo.set_xlabel('Distance (km)')
-    ax_tomo.set_ylabel('Normalized Power')
-    ax_tomo.set_yscale('log')
-    ax_tomo.set_ylim([1e-2, 2])
-    ax_tomo.set_title(f'WDM DP Tomography L={int(l_total)}km | Global LS Aligned | RMS Error: {rms_error:.2f} dB')
-    ax_tomo.legend(loc='lower left')
-    ax_tomo.grid(True, which="both", ls="--", alpha=0.5)
+    axs[1].plot(z_tomo_bank, gamma_theory, 'k--', linewidth=2, label=r'Theory $\gamma(z)$')
+    axs[1].plot(z_tomo_bank, gamma_final_safe, 'r-', linewidth=1.5, label=fr'Estimated $\gamma(z)$ (Avg={num_averages})')
+    axs[1].set_xlabel('Distance (km)')
+    axs[1].set_ylabel('Normalized Power')
+    axs[1].set_yscale('log')
+    axs[1].set_ylim([1e-2, 2])
+    axs[1].set_title(f'WDM DP Tomography L={int(l_total)}km [Version: plot-12] | RMS Error: {rms_error:.2f} dB')
+    axs[1].legend(loc='lower left')
+    axs[1].grid(True, which="both", ls="--", alpha=0.5)
 
     plt.tight_layout()
     plt.show()
