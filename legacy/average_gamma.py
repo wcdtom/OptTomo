@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from tomo_fiber import tomo_cd, l_total, l_span, Nfft, alpha_tomo, delta_z, gamma, if_normalize_power
+from legacy.tomo_fiber import l_total, l_span, alpha_tomo, delta_z, gamma, if_normalize_power
 
 # z_tomo_bank = delta_z + np.arange(0, l_total, delta_z)
 z_tomo_bank = np.arange(0, l_total, delta_z)
