@@ -1,7 +1,7 @@
 # OptTomo
 
 <div style="text-align: center;">
-    <img src="./Results/gamma_theory.png" alt="plot" style="width: 80%;"/>
+    <img src="../Results/gamma_theory.png" alt="plot" style="width: 80%;"/>
 </div>
 
 * run ./main_multiprocess.sh to concurrently call tomo_fiber.py with different random seeds.
