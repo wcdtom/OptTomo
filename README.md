@@ -49,9 +49,3 @@ and $T_{s} \times 1 =  4 \times Z \times T_{s} \approx 10^8$ FLOP and $\approx$ 
 * GTX 4060: (FP32)15TFLOPS, (GDDR6)8GB, Memory Bandwidth 272GB/s 
 --> Execution time: sub-millisecond (theory)
 * Tested on Apple M1 ARM-based system-on-a-chip (1024 ALU, 2.6TFLOPS in FP32): $\approx$ 100ms
-
-### New Update
-1. enhanced RP1 (eRP1) was realized in tomo_wdm_xxx.py
-2. DSP step was realized in tomo_wdm_dsp_xxx.py
-3. optcommpy based DSP was realized in tomo_wdm_dsp_optcommpy.py
-4. plot was realized in tomo_wdm_dsp_cptcommpy_plot.py

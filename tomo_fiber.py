@@ -51,7 +51,7 @@ computing_G = True
 
 if_normalize_power = True
 
-if_plot = False
+if_plot = True
 
 
 def tomo_cd(length: float, signal_input: NDArray) -> NDArray:
@@ -61,7 +61,12 @@ def tomo_cd(length: float, signal_input: NDArray) -> NDArray:
         Nmodes = 1
         signal_input = signal_input.reshape(signal_input.size, Nmodes)
 
-    omega_tomo = np.tile(omega, (1, Nmodes))
+    # Recompute omega for the actual signal length (avoids shape mismatch
+    # when signal_input length differs from the module-level Nfft)
+    N = signal_input.shape[0]
+    omega_local = 2 * np.pi * Fs * fftfreq(N)
+    omega_local = omega_local.reshape(N, 1)
+    omega_tomo = np.tile(omega_local, (1, Nmodes))
     signal_output = ifft(
         fft(signal_input, axis=0) * np.exp(1j * (beta_2 / 2) * (omega_tomo ** 2) * length), axis=0
     )
@@ -95,7 +100,10 @@ def nonlinear_fiber(signal_input: NDArray) -> NDArray:
 
 
 def generate_matrix_g(save_g=False):
-    G = np.zeros([len(z_tomo_bank), Nfft], dtype=complex)
+    # Use actual signal length (sigTxo may differ from module-level Nfft
+    # when simpleWDMTx uses a different SpS or sequence length)
+    N = sigTxo.shape[0]
+    G = np.zeros([len(z_tomo_bank), N], dtype=complex)
     # for z_tomo in z_tomo_bank:
     for z_index, z_tomo in enumerate(tqdm(z_tomo_bank, desc="Processing")):
         # A(z)
